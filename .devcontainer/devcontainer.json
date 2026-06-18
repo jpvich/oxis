@@ -1,0 +1,29 @@
+{
+  "name": "OXIS",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": true
+    }
+  },
+  // rustup picks up rust-toolchain.toml; `rustup show` installs the pinned
+  // toolchain + components. maturin is for building the PyO3 Python bindings.
+  "postCreateCommand": "rustup show && python -m pip install --upgrade pip maturin",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "ms-python.python",
+        "vadimcn.vscode-lldb"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        }
+      }
+    }
+  }
+}

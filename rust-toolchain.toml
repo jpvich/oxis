@@ -1,0 +1,7 @@
+# Pins the Rust toolchain for everyone — local and CI alike.
+# rustup reads this automatically and installs the right channel + components
+# on the first cargo/rustup command run in this repo. No manual setup needed.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

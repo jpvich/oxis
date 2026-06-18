@@ -1,0 +1,40 @@
+# Local-only files — never tracked or committed
+references/
+CLAUDE.md
+oxis-project-spec.md
+
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Python / PyO3 / maturin
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.eggs/
+build/
+dist/
+wheels/
+*.so
+*.pyd
+target/wheels/
+
+# Validation reference generation (Python tooling, not the checked-in CSVs)
+validation/.venv/
+
+# Claude Code local / personal settings (never committed)
+.claude/settings.local.json
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Direnv / env
+.env
+.envrc

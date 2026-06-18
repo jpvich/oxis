@@ -1,0 +1,10 @@
+# Code owners for OXIS.
+#
+# These owners are automatically requested for review on every pull request,
+# and (with branch protection's "require review from Code Owners") must approve
+# before a PR can be merged into a protected branch.
+#
+# Order matters: the last matching pattern takes precedence.
+
+# Default owner for everything in the repository.
+*       @jpvich
