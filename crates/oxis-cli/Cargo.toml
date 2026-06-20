@@ -1,0 +1,24 @@
+[package]
+name = "oxis-cli"
+version = "0.0.0"
+description = "The OXIS command-line interface and interactive REPL."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+# The installed binary is `oxis`, not `oxis-cli`.
+[[bin]]
+name = "oxis"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }
+oxis-pricing = { workspace = true }
+oxis-greeks = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }

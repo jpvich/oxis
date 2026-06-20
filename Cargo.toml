@@ -1,6 +1,16 @@
 [workspace]
 resolver = "2"
-members = ["crates/oxis-core"]
+members = [
+    "crates/oxis-core",
+    "crates/oxis-pricing",
+    "crates/oxis-greeks",
+    "crates/oxis-cli",
+    "crates/oxis-stats",
+    "crates/oxis-portfolio",
+    "crates/oxis-ml",
+    "crates/oxis-data",
+    "python",
+]
 
 [workspace.package]
 edition = "2024"
@@ -8,6 +18,25 @@ rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jpvich/oxis"
 homepage = "https://github.com/jpvich/oxis"
+
+# Shared dependency versions, referenced by member crates via `<dep>.workspace = true`.
+# Kept deliberately small — a new entry needs justification (see CONTRIBUTING.md).
+[workspace.dependencies]
+# Serialization — `--json` output and the typed interchange records.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Library error type (oxis-core) and app-level errors (oxis-cli / future apps).
+thiserror = "2"
+anyhow = "1"
+# CLI argument parsing (oxis-cli only).
+clap = { version = "4", features = ["derive"] }
+# Python bindings (oxis-python only). `extension-module` is added by that crate
+# so the module links against the host interpreter at import time.
+pyo3 = { version = "0.23", features = ["abi3-py39"] }
+# Internal crates, referenced by path so modules can depend on the core.
+oxis-core = { path = "crates/oxis-core" }
+oxis-pricing = { path = "crates/oxis-pricing" }
+oxis-greeks = { path = "crates/oxis-greeks" }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

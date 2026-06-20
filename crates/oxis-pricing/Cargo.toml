@@ -1,0 +1,19 @@
+[package]
+name = "oxis-pricing"
+version = "0.0.0"
+description = "Option pricing models for OXIS (Black-Scholes, binomial, Monte Carlo), validated against QuantLib."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

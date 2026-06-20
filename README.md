@@ -81,9 +81,18 @@ let price = black_scholes(&option, &market)?;
 
 ## Architecture
 
-OXIS is a **stable core** plus a **module layer** that grows. The dependency direction is one-way — **module → core only**; a module never imports another module's internals, and shared logic belongs in the core. Every module's logic lives in a pure, I/O-free core; the CLI `run()`, the REPL, and the PyO3 bindings are thin wrappers around that *same* core.
+OXIS is a **stable core** plus a **module layer** that grows. The dependency direction is one-way — **module → core only**; a module never imports another module's internals, and shared logic belongs in the core.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the module contract every module implements, and `docs/` for per-model and architectural notes as modules land.
+Modules come in **two kinds**:
+
+- **Compute modules** (pricing, greeks, stats, ML inference) are pure and I/O-free — the CLI `run()`, the REPL, and the PyO3 bindings are thin wrappers around that *same* core, and every pricing model is validated against QuantLib.
+- **Service modules** (market-data and, later, storage / live AI) are stateful and do I/O behind a trait defined in the core, confined to their own crate — so consumers depend on the *capability*, not a concrete provider.
+
+The core stays lean and runtime-agnostic on purpose (no Polars/Arrow, no async runtime, no HTTP); heavy columnar machinery is opt-in and local to the stats/data modules. This is what lets OXIS start as a validated pricing library and grow — through architecture, not heroics — toward statistics, portfolio & risk, ML-based pricing, and (long-term) a market-data API.
+
+Capability grows in **rings**: Ring 1 is the validated pricing core (in progress); Ring 2 adds breadth (exotics, curves, fixed income); Ring 3 adds risk/portfolio and statistics; Ring 4 adds the differentiating ML-based pricing; a market-data API follows long-term. The later-ring crates already exist as skeletons carrying their boundary contracts.
+
+See [docs/architecture.md](docs/architecture.md) for the full map, [CONTRIBUTING.md](CONTRIBUTING.md) for the two module-kind contracts, and [docs/parity.md](docs/parity.md) / [docs/models.md](docs/models.md) for coverage and per-model validation status.
 
 ## Validation
 

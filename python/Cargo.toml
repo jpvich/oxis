@@ -1,0 +1,24 @@
+[package]
+name = "oxis-python"
+version = "0.0.0"
+description = "Python bindings (PyO3) for OXIS — a thin wrapper over the pure cores."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+# Built as a Python extension module named `oxis` (see pyproject.toml).
+[lib]
+name = "oxis"
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }
+oxis-pricing = { workspace = true }
+oxis-greeks = { workspace = true }
+pyo3 = { workspace = true, features = ["extension-module"] }
