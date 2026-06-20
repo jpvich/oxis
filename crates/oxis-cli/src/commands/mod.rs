@@ -1,0 +1,47 @@
+//! CLI subcommands. Each is a thin `run(ctx)` wrapper over a pure module core.
+
+mod greeks;
+mod implied_vol;
+mod price;
+
+use oxis_core::{OptionType, RunContext};
+
+/// Call or put as a CLI value (`--type call|put`), shared by the commands.
+/// Mapped to the core type so `clap` stays out of `oxis-core`.
+#[derive(Clone, Copy, clap::ValueEnum)]
+pub(crate) enum CliOptionType {
+    Call,
+    Put,
+}
+
+impl From<CliOptionType> for OptionType {
+    fn from(value: CliOptionType) -> Self {
+        match value {
+            CliOptionType::Call => OptionType::Call,
+            CliOptionType::Put => OptionType::Put,
+        }
+    }
+}
+
+/// The top-level `oxis` subcommands.
+#[derive(clap::Subcommand)]
+pub enum Command {
+    /// Price an option (`--model black-scholes|binomial`, `--style`).
+    Price(price::PriceArgs),
+    /// Compute analytic Black-Scholes Greeks for a European option.
+    Greeks(greeks::GreeksArgs),
+    /// Solve for the implied volatility given a market price.
+    #[command(name = "implied-vol")]
+    ImpliedVol(implied_vol::ImpliedVolArgs),
+}
+
+impl Command {
+    /// Dispatch to the selected subcommand.
+    pub fn run(self, ctx: &RunContext) -> anyhow::Result<()> {
+        match self {
+            Command::Price(args) => price::run(args, ctx),
+            Command::Greeks(args) => greeks::run(args, ctx),
+            Command::ImpliedVol(args) => implied_vol::run(args, ctx),
+        }
+    }
+}

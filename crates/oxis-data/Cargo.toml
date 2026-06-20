@@ -1,0 +1,19 @@
+[package]
+name = "oxis-data"
+version = "0.0.0"
+description = "Market-data providers for OXIS (provider-agnostic fetching, caching, rate-limiting). Reserved — long-term."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }
+
+# When this ring lands it gains an async runtime + HTTP client (e.g. tokio,
+# reqwest) HERE — confined to this service crate, never in the core. Providers,
+# a resolver chain, caching, rate-limiting, and circuit-breaking live here.

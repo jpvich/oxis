@@ -1,0 +1,15 @@
+[package]
+name = "oxis-portfolio"
+version = "0.0.0"
+description = "Portfolio & risk analytics for OXIS (holdings, valuation, performance, allocation). Reserved — Ring 3."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }

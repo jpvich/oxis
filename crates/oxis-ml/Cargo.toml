@@ -1,0 +1,15 @@
+[package]
+name = "oxis-ml"
+version = "0.0.0"
+description = "ML-based pricing for OXIS (neural American options), validated against the classical engines. Reserved — Ring 4."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }

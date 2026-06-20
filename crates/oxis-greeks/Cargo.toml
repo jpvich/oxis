@@ -1,0 +1,23 @@
+[package]
+name = "oxis-greeks"
+version = "0.0.0"
+description = "Option Greeks for OXIS (analytic Black-Scholes + finite-difference fallback), validated against QuantLib."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+oxis-core = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+# The finite-difference cross-check needs a concrete pricer; serde_json backs
+# the output-layer round-trip test. Both are test-only — the crate itself
+# depends on oxis-core alone (see the module→core rule).
+oxis-pricing = { workspace = true }
+serde_json = { workspace = true }
