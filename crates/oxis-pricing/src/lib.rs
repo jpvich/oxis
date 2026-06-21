@@ -12,11 +12,15 @@
 mod binomial;
 mod black_scholes;
 mod implied_vol;
+mod lsm;
+mod monte_carlo;
 mod result;
 
 pub use binomial::{DEFAULT_STEPS, binomial};
 pub use black_scholes::black_scholes;
 pub use implied_vol::{ImpliedVolResult, implied_volatility};
+pub use lsm::lsm_american;
+pub use monte_carlo::{McConfig, McEstimate, monte_carlo_european};
 pub use result::PriceResult;
 
 #[cfg(test)]

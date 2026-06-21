@@ -224,6 +224,62 @@ def gen_implied_vol():
     }
 
 
+# Monte Carlo American (Longstaff-Schwartz) reference settings. QuantLib's
+# MCAmericanEngine *is* the Longstaff-Schwartz method, so comparing it to OXIS's
+# LSM is apples-to-apples (both share the same estimator bias). We record the
+# price and QuantLib's own error estimate so the Rust test can use a combined
+# standard-error tolerance rather than a fixed absolute one.
+MC_AMERICAN_STEPS = 100
+MC_AMERICAN_SAMPLES = 100_000
+MC_AMERICAN_SEED = 42
+MC_AMERICAN_POLYNOM_ORDER = 2
+# QuantLib fits the early-exercise boundary on a separate calibration pass; its
+# default (2048 paths) is far too small for deep in-the-money cases and biases
+# the price low by well beyond the reported standard error. A large calibration
+# sample makes the engine an accurate oracle (verified against the binomial /
+# closed-form American value).
+MC_AMERICAN_CALIBRATION_SAMPLES = 65_536
+
+
+def gen_monte_carlo_american():
+    """American prices via QuantLib's MCAmericanEngine (Longstaff-Schwartz)."""
+    records = []
+    for spot, strike, rate, vol, div, days, kind in CASES:
+        ql.Settings.instance().evaluationDate = EVAL_DATE
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        process = _process(spot, rate, vol, div)
+        option, _ = _american_option(strike, days, kind)
+        engine = ql.MCAmericanEngine(
+            process,
+            "pseudorandom",
+            timeSteps=MC_AMERICAN_STEPS,
+            requiredSamples=MC_AMERICAN_SAMPLES,
+            seed=MC_AMERICAN_SEED,
+            polynomOrder=MC_AMERICAN_POLYNOM_ORDER,
+            polynomType=ql.LsmBasisSystem.Monomial,
+            antitheticVariate=True,
+            nCalibrationSamples=MC_AMERICAN_CALIBRATION_SAMPLES,
+        )
+        option.setPricingEngine(engine)
+        records.append(
+            {
+                "spot": spot, "strike": strike, "rate": rate, "volatility": vol,
+                "dividend_yield": div, "time": t, "option_type": kind,
+                "style": "american", "steps": MC_AMERICAN_STEPS,
+                "samples": MC_AMERICAN_SAMPLES,
+                "calibration_samples": MC_AMERICAN_CALIBRATION_SAMPLES,
+                "price": option.NPV(), "error_estimate": option.errorEstimate(),
+            }
+        )
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "longstaff-schwartz", "engine": "MCAmericanEngine",
+        "method": "least-squares Monte Carlo (antithetic, polynomial order 2)",
+        "day_count": "Actual365Fixed", "evaluation_date": str(EVAL_DATE),
+        "cases": records,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -231,6 +287,7 @@ def main():
         "binomial.json": gen_binomial(),
         "greeks.json": gen_greeks(),
         "implied_vol.json": gen_implied_vol(),
+        "monte_carlo_american.json": gen_monte_carlo_american(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)

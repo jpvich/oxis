@@ -10,8 +10,9 @@
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_greeks::analytic_greeks;
 use oxis_pricing::{
-    DEFAULT_STEPS, binomial as binomial_core, black_scholes as bs_core,
-    implied_volatility as iv_core,
+    DEFAULT_STEPS, McConfig, binomial as binomial_core, black_scholes as bs_core,
+    implied_volatility as iv_core, lsm_american as lsm_core,
+    monte_carlo_european as mc_european_core,
 };
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -167,6 +168,85 @@ fn greeks<'py>(
     Ok(d)
 }
 
+/// Price a European option by Monte Carlo, returning a dict with the price and
+/// its standard error (`{"price": ..., "standard_error": ...}`).
+///
+/// ```python
+/// oxis.monte_carlo(spot=100, strike=105, rate=0.05, vol=0.2, t=1.0,
+///                  option_type="call", paths=1_000_000, seed=42)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, t, option_type, paths=100_000,
+                    seed=42, dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn monte_carlo<'py>(
+    py: Python<'py>,
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    t: f64,
+    option_type: &str,
+    paths: usize,
+    seed: u64,
+    dividend_yield: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let option = EuropeanOption {
+        strike,
+        expiry_years: t,
+        option_type: parse_option_type(option_type)?,
+    };
+    let market = MarketData::new(spot, rate, vol, dividend_yield);
+    let cfg = McConfig {
+        paths,
+        steps: 1,
+        seed,
+    };
+    let est = mc_european_core(&option, &market, &cfg)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let d = PyDict::new(py);
+    d.set_item("price", est.price)?;
+    d.set_item("standard_error", est.standard_error)?;
+    Ok(d)
+}
+
+/// Price an American option by Longstaff-Schwartz Monte Carlo, returning a dict
+/// with the price and its standard error.
+///
+/// ```python
+/// oxis.lsm(spot=100, strike=110, rate=0.05, vol=0.3, t=1.0, option_type="put",
+///          paths=200_000, steps=50, seed=42)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, t, option_type, paths=100_000,
+                    steps=50, seed=42, dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn lsm<'py>(
+    py: Python<'py>,
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    t: f64,
+    option_type: &str,
+    paths: usize,
+    steps: usize,
+    seed: u64,
+    dividend_yield: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let ot = parse_option_type(option_type)?;
+    let market = MarketData::new(spot, rate, vol, dividend_yield);
+    let cfg = McConfig { paths, steps, seed };
+    let est =
+        lsm_core(ot, &market, strike, t, &cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let d = PyDict::new(py);
+    d.set_item("price", est.price)?;
+    d.set_item("standard_error", est.standard_error)?;
+    Ok(d)
+}
+
 /// Solve for the Black-Scholes implied volatility matching `market_price`.
 #[pyfunction]
 #[pyo3(signature = (market_price, spot, strike, rate, t, option_type, dividend_yield=0.0))]
@@ -197,6 +277,8 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(black_scholes, m)?)?;
     m.add_function(wrap_pyfunction!(price, m)?)?;
     m.add_function(wrap_pyfunction!(binomial, m)?)?;
+    m.add_function(wrap_pyfunction!(monte_carlo, m)?)?;
+    m.add_function(wrap_pyfunction!(lsm, m)?)?;
     m.add_function(wrap_pyfunction!(greeks, m)?)?;
     m.add_function(wrap_pyfunction!(implied_volatility, m)?)?;
     Ok(())

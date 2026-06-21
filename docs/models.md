@@ -15,8 +15,8 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 | Black-Scholes European | `oxis-pricing` | BSM closed-form (continuous dividend) | QuantLib `AnalyticEuropeanEngine` (1.42.1, 22 cases) | ≤ 1e-10 (max 2.5e-14) | **validated** |
 | Binomial (European) | `oxis-pricing` | Cox-Ross-Rubinstein tree (equal-jumps) | QuantLib `BinomialVanillaEngine` (CRR), N=256 + BS limit | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
 | Binomial (American) | `oxis-pricing` | CRR tree + early-exercise check | QuantLib `BinomialVanillaEngine` (CRR), N=256 | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
-| Monte Carlo (European) | `oxis-pricing` | GBM terminal simulation + SE | Black-Scholes | within 3 standard errors | planned (M2b) |
-| Longstaff-Schwartz (American) | `oxis-pricing` | LSM regression on basis functions | QuantLib `MCAmericanEngine` + binomial | within MC error + documented bias | planned (M2b) |
+| Monte Carlo (European) | `oxis-pricing` | GBM terminal simulation, antithetic variates, + SE | Black-Scholes (QuantLib-validated), 22 cases | ≤ 4 standard errors (worst ~1.7σ) | **validated** |
+| Longstaff-Schwartz (American) | `oxis-pricing` | LSM regression (`{1, S/K, (S/K)²}`) on ITM paths, antithetic | QuantLib `MCAmericanEngine` (LSM) + binomial, 22 cases | ≤ 5 combined SE + 0.05 vs QuantLib; ≤ 5 SE + 2.5% vs binomial | **validated** |
 | Analytic Greeks | `oxis-greeks` | Closed-form BSM derivatives | QuantLib `AnalyticEuropeanEngine` Greeks (22 cases ×5) | ≤ 1e-8 (max 1.0e-13) | **validated** |
 | Finite-difference Greeks | `oxis-greeks` | Central differences (bump: spot 1e-4 rel; vol/rate/time 1e-4 abs) | analytic Greeks (agree ≤1e-4) | documented | **implemented** |
 | Implied volatility | `oxis-pricing` | Newton-Raphson on vega + Brent fallback | round-trip + QuantLib `impliedVolatility` (22 cases) | ≤ 1e-6 (max 1.2e-11) | **validated** |
@@ -44,6 +44,25 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
   (vega → 0): recovered σ error scales like (price tolerance)/vega. The solver
   uses a 1e-12 price residual so σ stays accurate to ≤1e-6 even there; ATM
   recovers σ to ~1e-9.
+- **Monte Carlo** simulates GBM terminal prices in one exact log-normal jump (no
+  time discretization for European), reduces variance with **antithetic variates**
+  (each draw `z` paired with `−z`), and always reports a **standard error** (over
+  the per-pair averages, so the antithetic correlation is captured). Runs are
+  **bit-reproducible** for a fixed `(seed, paths)` regardless of thread count:
+  each antithetic pair seeds its own RNG from a `splitmix64` mix of `(seed,
+  index)`, and results are reduced in index order — `rayon` parallelism never
+  changes the number.
+- **Longstaff-Schwartz** is a **lower-bound** estimator: the early-exercise policy
+  comes from a least-squares regression of discounted continuation values on a
+  degree-2 monomial basis of moneyness `S/K` (matching QuantLib's default
+  `MCAmericanEngine`), fit over in-the-money paths only. A regression-based policy
+  is necessarily suboptimal, so the price sits *below* the true (binomial) value —
+  by ≤2.5% here, largest for high-σ / dividend cases where the continuation
+  surface is hardest to fit. Validation is therefore two-pronged: apples-to-apples
+  against QuantLib's *own* LSM engine (same method, same bias) within a combined
+  standard error, plus a bias-banded cross-check against the QuantLib-validated
+  binomial price. QuantLib's engine needs a large calibration sample
+  (`nCalibrationSamples = 65536`) to be an accurate oracle for deep-ITM cases.
 
 ## Edge-case contract (applies to every pricing model)
 
@@ -54,6 +73,9 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 - American price ≥ corresponding European price (tested).
 - Binomial: risk-neutral `p ∉ [0,1]` (extreme inputs/too-few steps) → error, not
   a nonsense price.
+- Monte Carlo / LSM: the deterministic limits (`T = 0`, `σ = 0`, `S = 0`) return
+  the exact value with a standard error of exactly `0.0` (no sampling). Deep-ITM
+  American options return the exact intrinsic when immediate exercise dominates.
 
 Later rings (stats, portfolio, ML, market-data) document their methods and
 validation here as they land.

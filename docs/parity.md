@@ -13,8 +13,8 @@ Legend: ✅ first-class · ◐ partial / limited (and, for RustQuant, **unvalida
 |---|---|---|---|
 | Black-Scholes European (closed-form) | ✅ | ✅ | ✅ Ring 1 — **validated vs QuantLib** (≤2.5e-14) |
 | Binomial CRR (European + American) | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.1e-10) |
-| Monte Carlo European | ✅ | ✅ | 🔜 Ring 1 (M2b) |
-| Longstaff-Schwartz (American MC) | ✅ | ❌ | 🔜 Ring 1 (M2b) |
+| Monte Carlo European | ✅ | ✅ | ✅ Ring 1 — **validated vs Black-Scholes** (≤4σ; antithetic, reports SE) |
+| Longstaff-Schwartz (American MC) | ✅ | ❌ | ✅ Ring 1 — **validated vs QuantLib LSM + binomial** (combined-SE / ≤2.5% bias band) |
 | Analytic Greeks | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.0e-13) |
 | Implied volatility solver | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.2e-11) |
 | Exotic options (barrier, Asian, lookback) | ✅ | ◐ | 🔜 Ring 2 |

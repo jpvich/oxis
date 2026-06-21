@@ -33,6 +33,12 @@ clap = { version = "4", features = ["derive"] }
 # Python bindings (oxis-python only). `extension-module` is added by that crate
 # so the module links against the host interpreter at import time.
 pyo3 = { version = "0.23", features = ["abi3-py39"] }
+# Monte Carlo simulation (oxis-pricing only). `small_rng` enables the fast,
+# seedable SmallRng used for counter-based per-path seeding; `rand_distr`
+# samples the standard normal; `rayon` parallelizes the path loop.
+rand = { version = "0.8", features = ["small_rng"] }
+rand_distr = "0.4"
+rayon = "1"
 # Internal crates, referenced by path so modules can depend on the core.
 oxis-core = { path = "crates/oxis-core" }
 oxis-pricing = { path = "crates/oxis-pricing" }

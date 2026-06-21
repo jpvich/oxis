@@ -1,14 +1,22 @@
 //! `oxis price` — price an option and render the result.
 //!
 //! One entry point, model chosen by `--model`: `black-scholes` (closed-form,
-//! European only) or `binomial` (CRR tree, European or American via `--style`).
+//! European only), `binomial` (CRR tree, European or American via `--style`), or
+//! `mc` (Monte Carlo — European by simulation, American via Longstaff-Schwartz).
 //! Invalid combinations (e.g. `black-scholes` + `american`) fail with a clear
-//! error. Monte Carlo joins here as a `--model mc` in a later milestone.
+//! error. Monte Carlo also reports a standard error in the result.
 
 use super::CliOptionType;
 use oxis_core::output::render;
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType, OxisError, RunContext};
-use oxis_pricing::{DEFAULT_STEPS, PriceResult, binomial, black_scholes};
+use oxis_pricing::{
+    DEFAULT_STEPS, McConfig, PriceResult, binomial, black_scholes, lsm_american,
+    monte_carlo_european,
+};
+
+/// Default time-grid size for the Longstaff-Schwartz American engine. Far
+/// smaller than the binomial tree default because LSM stores every path.
+const LSM_DEFAULT_STEPS: usize = 50;
 
 /// Pricing model (`--model`).
 #[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
@@ -17,15 +25,8 @@ enum CliModel {
     BlackScholes,
     /// Cox-Ross-Rubinstein binomial tree (European or American).
     Binomial,
-}
-
-impl CliModel {
-    fn as_str(self) -> &'static str {
-        match self {
-            CliModel::BlackScholes => "black-scholes",
-            CliModel::Binomial => "binomial",
-        }
-    }
+    /// Monte Carlo simulation (European; American via Longstaff-Schwartz).
+    Mc,
 }
 
 /// Exercise style (`--style`).
@@ -78,9 +79,16 @@ pub struct PriceArgs {
     /// Exercise style.
     #[arg(long, value_enum, default_value_t = CliExercise::European)]
     style: CliExercise,
-    /// Binomial tree steps (only used by `--model binomial`).
-    #[arg(long, default_value_t = DEFAULT_STEPS)]
-    steps: usize,
+    /// Time steps: binomial tree depth (default 1000), or Monte Carlo / LSM
+    /// time-grid size (default 50). Ignored by black-scholes and European MC.
+    #[arg(long)]
+    steps: Option<usize>,
+    /// Monte Carlo paths (only used by `--model mc`).
+    #[arg(long)]
+    paths: Option<usize>,
+    /// Monte Carlo RNG seed (only used by `--model mc`).
+    #[arg(long)]
+    seed: Option<u64>,
 }
 
 /// Build the plain inputs, call the pure core, render the result.
@@ -94,29 +102,48 @@ pub fn run(args: PriceArgs, ctx: &RunContext) -> anyhow::Result<()> {
     };
     let market = MarketData::new(args.spot, args.rate, args.vol, args.dividend_yield);
 
-    let price = match args.model {
+    // (model label, price, optional Monte Carlo standard error).
+    let (model_label, price, standard_error): (&'static str, f64, Option<f64>) = match args.model {
         CliModel::BlackScholes => {
             if matches!(style, ExerciseStyle::American) {
                 return Err(OxisError::invalid_input(
-                    "black-scholes prices European options only; use --model binomial for american",
+                    "black-scholes prices European options only; use --model binomial or --model mc for american",
                 )
                 .into());
             }
-            black_scholes(&option, &market)?
+            ("black-scholes", black_scholes(&option, &market)?, None)
         }
         CliModel::Binomial => {
-            binomial(option_type, style, &market, args.strike, args.t, args.steps)?
+            let steps = args.steps.unwrap_or(DEFAULT_STEPS);
+            (
+                "binomial",
+                binomial(option_type, style, &market, args.strike, args.t, steps)?,
+                None,
+            )
+        }
+        CliModel::Mc => {
+            let cfg = McConfig {
+                paths: args.paths.unwrap_or_else(|| McConfig::default().paths),
+                steps: args.steps.unwrap_or(LSM_DEFAULT_STEPS),
+                seed: args.seed.unwrap_or_else(|| McConfig::default().seed),
+            };
+            match style {
+                ExerciseStyle::European => {
+                    let est = monte_carlo_european(&option, &market, &cfg)?;
+                    ("monte-carlo", est.price, Some(est.standard_error))
+                }
+                ExerciseStyle::American => {
+                    let est = lsm_american(option_type, &market, args.strike, args.t, &cfg)?;
+                    ("longstaff-schwartz", est.price, Some(est.standard_error))
+                }
+            }
         }
     };
 
-    let result = PriceResult::new(
-        args.model.as_str(),
-        option_type,
-        style,
-        &option,
-        &market,
-        price,
-    );
+    let mut result = PriceResult::new(model_label, option_type, style, &option, &market, price);
+    if let Some(se) = standard_error {
+        result = result.with_standard_error(se);
+    }
 
     println!("{}", render(&result, ctx.format));
     Ok(())
