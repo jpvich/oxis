@@ -60,6 +60,15 @@ impl PriceResult {
             standard_error: None,
         }
     }
+
+    /// Attach a Monte Carlo standard error to the result (builder style).
+    ///
+    /// Use for the stochastic engines (`monte_carlo_european`, `lsm_american`);
+    /// closed-form and tree methods leave `standard_error` as `None`.
+    pub fn with_standard_error(mut self, standard_error: f64) -> Self {
+        self.standard_error = Some(standard_error);
+        self
+    }
 }
 
 impl Tabular for PriceResult {

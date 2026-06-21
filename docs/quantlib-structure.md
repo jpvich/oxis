@@ -152,8 +152,8 @@ source of bugs in concurrent/served contexts. OXIS makes time an explicit input
 | 1-D root finders (Newton/Brent) | ● | | | | **done** in `oxis-core::math::solvers` (M2a) |
 | Interpolation (linear/cubic) | ● | | | | Ring 2 (curves) |
 | Optimization (LM/BFGS/...) | | | ● | | calibration + portfolio opt |
-| RNGs (MT/Sobol) | ● | | | | M2b (Monte Carlo) |
-| Monte Carlo framework | ● | | | | M2b |
+| RNGs (MT/Sobol) | ● | | | | **`rand` SmallRng done** (M2b, counter-seeded for determinism); Sobol later |
+| Monte Carlo framework | ● | | | | **done** (M2b) — European MC + LSM American, mirrors `MCAmericanEngine`; antithetic, `rayon`-parallel |
 | Lattices (binomial/trinomial) | ● | | | | **CRR done** (M2a), mirrors `BinomialVanillaEngine("crr")`; trinomial later |
 | Finite differences (PDE) | | | | ● | trees + MC cover our needs first |
 | Instrument ↔ Engine split | | ● | | | functions over typed structs |
