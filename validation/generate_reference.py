@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import math
 import os
 
 import QuantLib as ql
@@ -280,6 +281,89 @@ def gen_monte_carlo_american():
     }
 
 
+# Yield-curve reference. QuantLib's interpolated term structures anchor t=0 at
+# their first pillar (the reference date), so every curve below starts with a
+# `0`-day anchor; OXIS mirrors this. Pillar tenors are in days; the exact
+# Act/365 year fraction is days/365, and we query QuantLib by Time directly so
+# both sides use bit-identical t. Three interpolations are covered, each matching
+# a QuantLib term structure: Linear (ZeroCurve/Linear), LogLinear
+# (DiscountCurve), and natural cubic (ZeroCurve with second-derivative-0 ends).
+YIELD_CURVES = [
+    # label,           interp,          pillar_days,                 zero_rates
+    ("upward", "linear", [0, 182, 365, 730, 1825], [0.020, 0.022, 0.025, 0.030, 0.035]),
+    ("upward", "log-linear", [0, 182, 365, 730, 1825], [0.020, 0.022, 0.025, 0.030, 0.035]),
+    ("upward", "natural-cubic", [0, 182, 365, 730, 1825], [0.020, 0.022, 0.025, 0.030, 0.035]),
+    ("humped", "natural-cubic", [0, 365, 730, 1095, 1825], [0.010, 0.030, 0.028, 0.025, 0.020]),
+    ("inverted", "linear", [0, 365, 730, 1825], [0.040, 0.035, 0.030, 0.025]),
+    ("negative-short", "log-linear", [0, 365, 730], [-0.005, 0.005, 0.010]),
+]
+
+# Candidate query tenors (days); filtered per curve to lie within its pillars.
+QUERY_DAYS = [90, 182, 273, 365, 547, 730, 1095, 1460, 1700]
+
+
+def _yield_ts(dates, zeros, interp):
+    """Build the QuantLib term structure matching an OXIS interpolation scheme."""
+    if interp == "linear":
+        ts = ql.ZeroCurve(dates, zeros, DAY_COUNT, CALENDAR, ql.Linear())
+    elif interp == "log-linear":
+        dfs = [
+            math.exp(-z * DAY_COUNT.yearFraction(dates[0], d))
+            for z, d in zip(zeros, dates)
+        ]
+        ts = ql.DiscountCurve(dates, dfs, DAY_COUNT)
+    elif interp == "natural-cubic":
+        # NaturalCubicZeroCurve presets the Cubic interpolation to a natural
+        # spline (second derivative 0 at both ends), matching OXIS exactly.
+        ts = ql.NaturalCubicZeroCurve(dates, zeros, DAY_COUNT)
+    else:
+        raise ValueError(f"unknown interpolation {interp!r}")
+    ts.enableExtrapolation()
+    return ts
+
+
+def gen_yield_curve():
+    """Discount / zero / forward queries against QuantLib term structures."""
+    ql.Settings.instance().evaluationDate = EVAL_DATE
+    records = []
+    for label, interp, pillar_days, zeros in YIELD_CURVES:
+        dates = [_exercise_date(d) for d in pillar_days]
+        ts = _yield_ts(dates, zeros, interp)
+        pillar_times = [d / 365.0 for d in pillar_days]
+        last_day = pillar_days[-1]
+        queries = [d for d in QUERY_DAYS if 0 < d <= last_day]
+        for i, d in enumerate(queries):
+            t = d / 365.0
+            # Forward leg runs to the next query tenor, when one exists.
+            forward_t2 = None
+            forward_rate = None
+            if i + 1 < len(queries):
+                d2 = queries[i + 1]
+                forward_t2 = d2 / 365.0
+                forward_rate = ts.forwardRate(
+                    t, forward_t2, ql.Continuous, ql.Annual, True
+                ).rate()
+            records.append(
+                {
+                    "curve": label,
+                    "interpolation": interp,
+                    "pillar_times": pillar_times,
+                    "pillar_rates": zeros,
+                    "t": t,
+                    "discount": ts.discount(t),
+                    "zero_rate": ts.zeroRate(t, ql.Continuous, ql.Annual, True).rate(),
+                    "forward_t2": forward_t2,
+                    "forward_rate": forward_rate,
+                }
+            )
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "yield-curve", "engine": "ZeroCurve / DiscountCurve",
+        "compounding": "continuous", "day_count": "Actual365Fixed",
+        "evaluation_date": str(EVAL_DATE), "tolerance": 1e-10, "cases": records,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -288,6 +372,7 @@ def main():
         "greeks.json": gen_greeks(),
         "implied_vol.json": gen_implied_vol(),
         "monte_carlo_american.json": gen_monte_carlo_american(),
+        "yield_curve.json": gen_yield_curve(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)

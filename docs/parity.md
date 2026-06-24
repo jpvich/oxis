@@ -18,7 +18,7 @@ Legend: ✅ first-class · ◐ partial / limited (and, for RustQuant, **unvalida
 | Analytic Greeks | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.0e-13) |
 | Implied volatility solver | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.2e-11) |
 | Exotic options (barrier, Asian, lookback) | ✅ | ◐ | 🔜 Ring 2 |
-| Yield curves / term structures | ✅ | ◐ | 🔜 Ring 2 |
+| Yield curves / term structures | ✅ | ◐ | ✅ Ring 2 — **validated vs QuantLib** (≤1e-10; linear / log-linear / natural-cubic; discount/zero/forward) |
 | Bonds & fixed income | ✅ | ❌ | 🔜 Ring 2 |
 | Stochastic process generators | ✅ | ✅ | 🔜 Ring 2 |
 

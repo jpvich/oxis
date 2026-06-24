@@ -1,0 +1,1143 @@
+{
+  "oracle": "QuantLib",
+  "oracle_version": "1.42.1",
+  "model": "yield-curve",
+  "engine": "ZeroCurve / DiscountCurve",
+  "compounding": "continuous",
+  "day_count": "Actual365Fixed",
+  "evaluation_date": "June 15th, 2026",
+  "tolerance": 1e-10,
+  "cases": [
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9948379965945827,
+      "zero_rate": 0.020989010989011132,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.02298901098901081
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.9890900865205969,
+      "zero_rate": 0.022000000000000065,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.026475409836065375
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9825828809158159,
+      "zero_rate": 0.023491803278688498,
+      "forward_t2": 1.0,
+      "forward_rate": 0.02947540983606582
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.0,
+      "discount": 0.9753099120283326,
+      "zero_rate": 0.025000000000000015,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.032493150684931284
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.9596352024580164,
+      "zero_rate": 0.027493150684931553,
+      "forward_t2": 2.0,
+      "forward_rate": 0.0374931506849313
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 2.0,
+      "discount": 0.9417645335842487,
+      "zero_rate": 0.03000000000000001,
+      "forward_t2": 3.0,
+      "forward_rate": 0.035000000000000024
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 3.0,
+      "discount": 0.9093729344682314,
+      "zero_rate": 0.031666666666666635,
+      "forward_t2": 4.0,
+      "forward_rate": 0.038333333333333344
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.0,
+      "discount": 0.8751733190429475,
+      "zero_rate": 0.03333333333333335,
+      "forward_t2": 4.657534246575342,
+      "forward_rate": 0.04109589041095919
+    },
+    {
+      "curve": "upward",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.657534246575342,
+      "discount": 0.8518410857077408,
+      "zero_rate": 0.03442922374429225,
+      "forward_t2": null,
+      "forward_rate": null
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9945900293513262,
+      "zero_rate": 0.02200000000000021,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.022000000000000203
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.9890900865205969,
+      "zero_rate": 0.022000000000000065,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.027983606557377444
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9822134833194187,
+      "zero_rate": 0.02399453551912558,
+      "forward_t2": 1.0,
+      "forward_rate": 0.02798360655737743
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.0,
+      "discount": 0.9753099120283326,
+      "zero_rate": 0.025000000000000015,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.03500000000000011
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.95843641685031,
+      "zero_rate": 0.028327239488117065,
+      "forward_t2": 2.0,
+      "forward_rate": 0.0349999999999998
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 2.0,
+      "discount": 0.9417645335842487,
+      "zero_rate": 0.03000000000000001,
+      "forward_t2": 3.0,
+      "forward_rate": 0.038333333333333344
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 3.0,
+      "discount": 0.906346737816457,
+      "zero_rate": 0.03277777777777779,
+      "forward_t2": 4.0,
+      "forward_rate": 0.038333333333333344
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.0,
+      "discount": 0.8722609313223268,
+      "zero_rate": 0.034166666666666644,
+      "forward_t2": 4.657534246575342,
+      "forward_rate": 0.038333333333333525
+    },
+    {
+      "curve": "upward",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.657534246575342,
+      "discount": 0.8505499437002464,
+      "zero_rate": 0.03475490196078428,
+      "forward_t2": null,
+      "forward_rate": null
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9948626726853161,
+      "zero_rate": 0.020888417710420732,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.023087417457197376
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.9890900865205969,
+      "zero_rate": 0.022000000000000065,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.026277466415462226
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9826313728501572,
+      "zero_rate": 0.02342582213848752,
+      "forward_t2": 1.0,
+      "forward_rate": 0.02967120169774922
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.0,
+      "discount": 0.9753099120283326,
+      "zero_rate": 0.025000000000000015,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.03334313156576957
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.9592285702057679,
+      "zero_rate": 0.027775959680018312,
+      "forward_t2": 2.0,
+      "forward_rate": 0.03664781450836022
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 2.0,
+      "discount": 0.9417645335842487,
+      "zero_rate": 0.03000000000000001,
+      "forward_t2": 3.0,
+      "forward_rate": 0.03868455156252278
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 3.0,
+      "discount": 0.9060284682144842,
+      "zero_rate": 0.032894850520840874,
+      "forward_t2": 4.0,
+      "forward_rate": 0.03857897010416801
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.0,
+      "discount": 0.8717404733585609,
+      "zero_rate": 0.03431588041667268,
+      "forward_t2": 4.657534246575342,
+      "forward_rate": 0.037765181149803095
+    },
+    {
+      "curve": "upward",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        0.4986301369863014,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.02,
+        0.022,
+        0.025,
+        0.03,
+        0.035
+      ],
+      "t": 4.657534246575342,
+      "discount": 0.8503600579507331,
+      "zero_rate": 0.03480284052017346,
+      "forward_t2": null,
+      "forward_rate": null
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9959946403028287,
+      "zero_rate": 0.016276577349312666,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.02789306819053917
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.9890167767016318,
+      "zero_rate": 0.022148649642680193,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.03632124999379761
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9801012276462442,
+      "zero_rate": 0.026872849759719358,
+      "forward_t2": 1.0,
+      "forward_rate": 0.03927947843039835
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 1.0,
+      "discount": 0.9704455335485082,
+      "zero_rate": 0.03000000000000008,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.03216690458353253
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.9550043457015699,
+      "zero_rate": 0.030720981049731148,
+      "forward_t2": 2.0,
+      "forward_rate": 0.019866794348617732
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 2.0,
+      "discount": 0.9455391358903963,
+      "zero_rate": 0.027999999999999987,
+      "forward_t2": 3.0,
+      "forward_rate": 0.019000000000000107
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 3.0,
+      "discount": 0.9277434863285529,
+      "zero_rate": 0.024999999999999994,
+      "forward_t2": 4.0,
+      "forward_rate": 0.015732558139534805
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 4.0,
+      "discount": 0.9132619227092811,
+      "zero_rate": 0.02268313953488371,
+      "forward_t2": 4.657534246575342,
+      "forward_rate": 0.010317043828299283
+    },
+    {
+      "curve": "humped",
+      "interpolation": "natural-cubic",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.01,
+        0.03,
+        0.028,
+        0.025,
+        0.02
+      ],
+      "t": 4.657534246575342,
+      "discount": 0.9070874944256905,
+      "zero_rate": 0.020937337788071803,
+      "forward_t2": null,
+      "forward_rate": null
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9904865254707614,
+      "zero_rate": 0.038767123287670756,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.03627397260274002
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.981471752692913,
+      "zero_rate": 0.03750684931506838,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.033767123287671265
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9732437657935067,
+      "zero_rate": 0.036260273972602675,
+      "forward_t2": 1.0,
+      "forward_rate": 0.031260273972602254
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 1.0,
+      "discount": 0.9656054162575665,
+      "zero_rate": 0.035000000000000024,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.027506849315068634
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.9524518313301373,
+      "zero_rate": 0.03250684931506847,
+      "forward_t2": 2.0,
+      "forward_rate": 0.02250684931506858
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 2.0,
+      "discount": 0.9417645335842487,
+      "zero_rate": 0.03000000000000001,
+      "forward_t2": 3.0,
+      "forward_rate": 0.025000000000000015
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 3.0,
+      "discount": 0.9185122844014574,
+      "zero_rate": 0.028333333333333346,
+      "forward_t2": 4.0,
+      "forward_rate": 0.021666666666666737
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 4.0,
+      "discount": 0.8988252314716089,
+      "zero_rate": 0.026666666666666665,
+      "forward_t2": 4.657534246575342,
+      "forward_rate": 0.01890410958904115
+    },
+    {
+      "curve": "inverted",
+      "interpolation": "linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0,
+        5.0
+      ],
+      "pillar_rates": [
+        0.04,
+        0.035,
+        0.03,
+        0.025
+      ],
+      "t": 4.657534246575342,
+      "discount": 0.8877218952000088,
+      "zero_rate": 0.02557077625570778,
+      "forward_t2": null,
+      "forward_rate": null
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 0.2465753424657534,
+      "discount": 0.9987678829679357,
+      "zero_rate": 0.004999999999999633,
+      "forward_t2": 0.4986301369863014,
+      "forward_rate": 0.004999999999999838
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 0.4986301369863014,
+      "discount": 0.9975099546340253,
+      "zero_rate": 0.0050000000000001875,
+      "forward_t2": 0.7479452054794521,
+      "forward_rate": 0.005000000000000063
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 0.7479452054794521,
+      "discount": 0.9962672580391051,
+      "zero_rate": 0.005000000000000048,
+      "forward_t2": 1.0,
+      "forward_rate": 0.00499999999999984
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 1.0,
+      "discount": 0.9950124791926823,
+      "zero_rate": 0.004999999999999897,
+      "forward_t2": 1.4986301369863013,
+      "forward_rate": 0.015000000000000083
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 1.4986301369863013,
+      "discount": 0.9875980933969001,
+      "zero_rate": 0.008327239488117004,
+      "forward_t2": 2.0,
+      "forward_rate": 0.015000000000000112
+    },
+    {
+      "curve": "negative-short",
+      "interpolation": "log-linear",
+      "pillar_times": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "pillar_rates": [
+        -0.005,
+        0.005,
+        0.01
+      ],
+      "t": 2.0,
+      "discount": 0.9801986733067553,
+      "zero_rate": 0.009999999999999983,
+      "forward_t2": null,
+      "forward_rate": null
+    }
+  ]
+}

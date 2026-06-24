@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
+use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
 use oxis_pricing::{
     DEFAULT_STEPS, McConfig, binomial as binomial_core, black_scholes as bs_core,
@@ -36,6 +37,20 @@ fn parse_exercise(s: &str) -> PyResult<ExerciseStyle> {
         "american" | "amer" | "a" => Ok(ExerciseStyle::American),
         other => Err(PyValueError::new_err(format!(
             "style must be 'european' or 'american', got {other:?}"
+        ))),
+    }
+}
+
+/// Parse a curve interpolation name (case-insensitive) into the core enum.
+fn parse_interp(s: &str) -> PyResult<Interpolation> {
+    match s.to_ascii_lowercase().as_str() {
+        "linear" => Ok(Interpolation::Linear),
+        "log-linear" | "loglinear" | "log_linear" => Ok(Interpolation::LogLinear),
+        "natural-cubic" | "naturalcubic" | "natural_cubic" | "cubic" => {
+            Ok(Interpolation::NaturalCubic)
+        }
+        other => Err(PyValueError::new_err(format!(
+            "interp must be 'linear', 'log-linear', or 'natural-cubic', got {other:?}"
         ))),
     }
 }
@@ -270,6 +285,74 @@ fn implied_volatility(
     iv_core(&option, market_price, &market).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// A yield curve / term structure: build once, query many times.
+///
+/// Construct with one of the static methods, then query continuously-compounded
+/// quantities (time in years, `Act/365`):
+///
+/// ```python
+/// import oxis
+/// c = oxis.YieldCurve.from_zero_rates([0.5, 1, 2, 5], [0.02, 0.025, 0.03, 0.035],
+///                                     interp="natural-cubic")
+/// c.discount(1.5), c.zero_rate(1.5), c.forward_rate(1.5, 2.5)
+/// ```
+#[pyclass(name = "YieldCurve")]
+pub struct YieldCurve {
+    inner: CurveCore,
+}
+
+#[pymethods]
+impl YieldCurve {
+    /// A flat continuously-compounded curve at `rate` for every maturity.
+    #[staticmethod]
+    fn flat(rate: f64) -> PyResult<Self> {
+        CurveCore::flat(rate)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Build from continuously-compounded zero rates at the given pillar times.
+    #[staticmethod]
+    #[pyo3(signature = (times, rates, interp="log-linear"))]
+    fn from_zero_rates(times: Vec<f64>, rates: Vec<f64>, interp: &str) -> PyResult<Self> {
+        let i = parse_interp(interp)?;
+        CurveCore::from_zero_rates(&times, &rates, i)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Build from discount factors at the given pillar times.
+    #[staticmethod]
+    #[pyo3(signature = (times, dfs, interp="log-linear"))]
+    fn from_discount_factors(times: Vec<f64>, dfs: Vec<f64>, interp: &str) -> PyResult<Self> {
+        let i = parse_interp(interp)?;
+        CurveCore::from_discount_factors(&times, &dfs, i)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Discount factor `P(t)` (with `P(0) = 1`).
+    fn discount(&self, t: f64) -> PyResult<f64> {
+        self.inner
+            .discount(t)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Continuously-compounded zero rate `z(t)`.
+    fn zero_rate(&self, t: f64) -> PyResult<f64> {
+        self.inner
+            .zero_rate(t)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Continuously-compounded forward rate over `[t1, t2]`.
+    fn forward_rate(&self, t1: f64, t2: f64) -> PyResult<f64> {
+        self.inner
+            .forward_rate(t1, t2)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -281,5 +364,6 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lsm, m)?)?;
     m.add_function(wrap_pyfunction!(greeks, m)?)?;
     m.add_function(wrap_pyfunction!(implied_volatility, m)?)?;
+    m.add_class::<YieldCurve>()?;
     Ok(())
 }
