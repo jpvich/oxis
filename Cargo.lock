@@ -241,6 +241,7 @@ dependencies = [
  "anyhow",
  "clap",
  "oxis-core",
+ "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
 ]
@@ -252,6 +253,15 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "oxis-curves"
+version = "0.0.0"
+dependencies = [
+ "oxis-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -302,6 +312,7 @@ name = "oxis-python"
 version = "0.0.0"
 dependencies = [
  "oxis-core",
+ "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
  "pyo3",

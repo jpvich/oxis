@@ -21,22 +21,24 @@ It does this with:
 - **Modular and readable.** A stable core plus a growing catalog of self-contained modules built against a fixed contract. New domains arrive as new modules without changing the core.
 - **Machine-readable output everywhere.** Human-readable on a TTY; `--json` / `--tsv` when piped.
 
-## Status — Phase 1 (in progress)
+## Status — Phase 1
 
-Phase 1 establishes a usable, validated pricing core. Target surface:
+Ring 1 is a complete, validated pricing core; Ring 2 has begun with yield curves.
+Every row below is validated against its reference in CI:
 
 | Capability | Reference | Status |
 |---|---|---|
-| Black-Scholes European (closed-form) | QuantLib `AnalyticEuropeanEngine` | Planned |
-| Binomial CRR (European + American) | QuantLib `BinomialVanillaEngine` | Planned |
-| Monte Carlo European | Black-Scholes | Planned |
-| Longstaff-Schwartz (American MC) | QuantLib `MCAmericanEngine` + binomial | Planned |
-| Analytic Greeks | QuantLib `AnalyticEuropeanEngine` | Planned |
-| Implied volatility solver | round-trip + QuantLib | Planned |
+| Black-Scholes European (closed-form) | QuantLib `AnalyticEuropeanEngine` | ✅ Validated (Ring 1) |
+| Binomial CRR (European + American) | QuantLib `BinomialVanillaEngine` | ✅ Validated (Ring 1) |
+| Monte Carlo European | Black-Scholes | ✅ Validated (Ring 1) |
+| Longstaff-Schwartz (American MC) | QuantLib `MCAmericanEngine` + binomial | ✅ Validated (Ring 1) |
+| Analytic Greeks | QuantLib `AnalyticEuropeanEngine` | ✅ Validated (Ring 1) |
+| Implied volatility solver | round-trip + QuantLib | ✅ Validated (Ring 1) |
+| Yield curves / term structures | QuantLib `ZeroCurve` / `DiscountCurve` | ✅ Validated (Ring 2) |
 
 Per-model method and validation status are tracked in [`docs/models.md`](docs/models.md), and a living capability-coverage matrix in [`docs/parity.md`](docs/parity.md).
 
-## Planned usage
+## Usage
 
 ### CLI
 
@@ -50,6 +52,10 @@ oxis price --spot 100 --strike 105 --rate 0.05 --vol 0.2 --t 1.0 \
 
 # Greeks, with JSON output for piping
 oxis greeks --spot 100 --strike 105 --rate 0.05 --vol 0.2 --t 1.0 --type call --json
+
+# Yield curve: discount / zero / forward at t=1.5 (natural-cubic interpolation)
+oxis curve --times 0.5,1,2,5 --rates 0.02,0.025,0.03,0.035 \
+           --interp natural-cubic --at 1.5 --forward-to 2.5
 ```
 
 Running `oxis` with no subcommand on a TTY opens an interactive REPL with completion and history.
@@ -65,7 +71,13 @@ price = oxis.black_scholes(
 )
 
 g = oxis.greeks(spot=100, strike=105, rate=0.05, vol=0.2, t=1.0, option_type="call")
-print(g.delta, g.gamma, g.vega, g.theta, g.rho)
+print(g["delta"], g["gamma"], g["vega"], g["theta"], g["rho"])
+
+# Yield curve — build once, query discount / zero / forward rates
+curve = oxis.YieldCurve.from_zero_rates(
+    [0.5, 1, 2, 5], [0.02, 0.025, 0.03, 0.035], interp="natural-cubic",
+)
+print(curve.discount(1.5), curve.zero_rate(1.5), curve.forward_rate(1.5, 2.5))
 ```
 
 ### Rust
@@ -98,8 +110,8 @@ See [docs/architecture.md](docs/architecture.md) for the full map, [CONTRIBUTING
 
 Validation against QuantLib — the industry-standard reference — is at the heart of OXIS:
 
-1. `validation/generate_reference.py` uses **QuantLib-Python** to price a realistic, edge-case-rich parameter grid for each model and writes the results to `validation/reference_data/<model>.csv` (checked into the repo).
-2. Rust validation tests load each reference CSV, run the corresponding OXIS pure core on the same inputs, and assert agreement within a documented tolerance.
+1. `validation/generate_reference.py` uses **QuantLib-Python** to price a realistic, edge-case-rich parameter grid for each model and writes the results to `validation/reference/<model>.json` (checked into the repo).
+2. Rust validation tests load each reference JSON, run the corresponding OXIS pure core on the same inputs, and assert agreement within a documented tolerance.
 3. QuantLib-Python is **only** a validation-time dependency — never a runtime dependency of OXIS.
 
 ## Building

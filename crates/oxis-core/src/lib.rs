@@ -48,7 +48,10 @@ pub mod types;
 pub use context::{OutputFormat, RunContext};
 pub use error::OxisError;
 pub use market::MarketData;
-pub use math::{brent, newton, normal_cdf, normal_pdf, poly_least_squares};
+pub use math::{
+    NaturalCubicSpline, brent, linear_interpolate, newton, normal_cdf, normal_pdf,
+    poly_least_squares,
+};
 pub use output::{Cell, Column, Tabular};
 pub use series::{DateRange, Ohlcv, TimeSeries};
 pub use source::DataSource;

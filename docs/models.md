@@ -21,11 +21,19 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 | Finite-difference Greeks | `oxis-greeks` | Central differences (bump: spot 1e-4 rel; vol/rate/time 1e-4 abs) | analytic Greeks (agree ≤1e-4) | documented | **implemented** |
 | Implied volatility | `oxis-pricing` | Newton-Raphson on vega + Brent fallback | round-trip + QuantLib `impliedVolatility` (22 cases) | ≤ 1e-6 (max 1.2e-11) | **validated** |
 
+## Ring 2 — term structures
+
+| Model | Crate | Method | Reference | Tolerance | Status |
+|---|---|---|---|---|---|
+| Yield curve / term structure | `oxis-curves` | interpolated discount/zero/forward — linear (zero rates), log-linear (discount factors), natural cubic (zero rates) | QuantLib `ZeroCurve` / `DiscountCurve` / `NaturalCubicZeroCurve` (1.42.1, 51 queries) | ≤ 1e-10 (max ~4.3e-16) | **validated** |
+
 ## Core numerics
 
 | Primitive | Crate | Method | Reference | Status |
 |---|---|---|---|---|
 | Normal CDF / PDF | `oxis-core` | high-accuracy `erf`/`erfc`-based (~1e-15) | known values (unit-tested) + cross-checked through Black-Scholes (≤2.5e-14 vs QuantLib) | **validated** |
+| Polynomial least-squares | `oxis-core` | normal equations + Gaussian elimination (LSM regression) | known polynomials (unit-tested) | **implemented** |
+| 1-D interpolation | `oxis-core` | piecewise-linear + natural cubic spline (tridiagonal solve) | known functions (unit-tested) + cross-checked through yield curves (≤1e-10 vs QuantLib) | **validated** |
 | Day-count year fraction | `oxis-core` | Act/365, Act/360, 30/360 (US) | hand-checked | **implemented** (unit-tested) |
 
 ## Conventions
@@ -63,6 +71,19 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
   standard error, plus a bias-banded cross-check against the QuantLib-validated
   binomial price. QuantLib's engine needs a large calibration sample
   (`nCalibrationSamples = 65536`) to be an accurate oracle for deep-ITM cases.
+- **Yield curves** are continuously compounded with time in years (`Act/365`),
+  matching `MarketData.rate` and the QuantLib oracle. Three interpolation schemes
+  each mirror a QuantLib term structure: **linear** in zero rates (`ZeroCurve`,
+  `Linear`), **log-linear** in discount factors (`DiscountCurve` — piecewise-
+  constant instantaneous forwards), and **natural cubic** in zero rates
+  (`NaturalCubicZeroCurve`, second derivative zero at both ends). The
+  interpolation scheme is independent of how the curve is built (from zero rates
+  or discount factors). QuantLib's interpolated curves anchor `t = 0` at their
+  first pillar (the reference date where the discount factor is `1`), so OXIS
+  curves accept a leading `t = 0` pillar; this is required for the natural cubic
+  spline (a global fit) to match node-for-node. Curves do **not** extrapolate: a
+  query outside `[t_first, t_last]` (other than `t = 0`) is an error, matching
+  QuantLib without `enableExtrapolation()`.
 
 ## Edge-case contract (applies to every pricing model)
 

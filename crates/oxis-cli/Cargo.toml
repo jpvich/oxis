@@ -20,5 +20,6 @@ workspace = true
 oxis-core = { workspace = true }
 oxis-pricing = { workspace = true }
 oxis-greeks = { workspace = true }
+oxis-curves = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

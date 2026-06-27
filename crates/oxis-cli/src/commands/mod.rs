@@ -1,5 +1,6 @@
 //! CLI subcommands. Each is a thin `run(ctx)` wrapper over a pure module core.
 
+mod curve;
 mod greeks;
 mod implied_vol;
 mod price;
@@ -33,6 +34,8 @@ pub enum Command {
     /// Solve for the implied volatility given a market price.
     #[command(name = "implied-vol")]
     ImpliedVol(implied_vol::ImpliedVolArgs),
+    /// Build a yield curve and query discount / zero / forward rates.
+    Curve(curve::CurveArgs),
 }
 
 impl Command {
@@ -42,6 +45,7 @@ impl Command {
             Command::Price(args) => price::run(args, ctx),
             Command::Greeks(args) => greeks::run(args, ctx),
             Command::ImpliedVol(args) => implied_vol::run(args, ctx),
+            Command::Curve(args) => curve::run(args, ctx),
         }
     }
 }
