@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
@@ -353,6 +354,115 @@ impl YieldCurve {
     }
 }
 
+/// A fixed-rate bond: build once, price and analyse from a yield or a curve.
+///
+/// ```python
+/// import oxis
+/// b = oxis.FixedRateBond.regular(face=100, coupon_rate=0.05, frequency=2, n_periods=10)
+/// b.clean_price_from_yield(0.05)        # ~100 (par)
+/// b.yield_to_maturity(100.0)            # ~0.05
+/// b.modified_duration(0.05), b.convexity(0.05)
+/// ```
+#[pyclass(name = "FixedRateBond")]
+pub struct FixedRateBond {
+    inner: BondCore,
+}
+
+#[pymethods]
+impl FixedRateBond {
+    /// A regular bond settling on a coupon date: `n_periods` equal coupons at
+    /// `t = k/frequency`, plus `face` redeemed at the last. Accrued is zero.
+    #[staticmethod]
+    #[pyo3(signature = (face, coupon_rate, frequency, n_periods))]
+    fn regular(face: f64, coupon_rate: f64, frequency: u32, n_periods: u32) -> PyResult<Self> {
+        BondCore::regular(face, coupon_rate, frequency, n_periods)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Build from explicit cashflows: `times` (years) and matching `amounts`,
+    /// plus the accrued interest at settlement.
+    #[staticmethod]
+    #[pyo3(signature = (times, amounts, frequency, accrued=0.0, face=100.0, coupon_rate=0.0))]
+    fn from_cashflows(
+        times: Vec<f64>,
+        amounts: Vec<f64>,
+        frequency: u32,
+        accrued: f64,
+        face: f64,
+        coupon_rate: f64,
+    ) -> PyResult<Self> {
+        if times.len() != amounts.len() {
+            return Err(PyValueError::new_err(
+                "times and amounts must have equal length",
+            ));
+        }
+        let cashflows = times
+            .into_iter()
+            .zip(amounts)
+            .map(|(time, amount)| Cashflow { time, amount })
+            .collect();
+        BondCore::from_cashflows(face, coupon_rate, frequency, cashflows, accrued)
+            .map(|inner| Self { inner })
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Accrued interest at settlement.
+    #[getter]
+    fn accrued(&self) -> f64 {
+        self.inner.accrued
+    }
+
+    /// Dirty (full) price from a flat yield compounded at the coupon frequency.
+    fn dirty_price_from_yield(&self, y: f64) -> PyResult<f64> {
+        self.inner
+            .dirty_price_from_yield(y)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Clean price from a flat yield (`dirty − accrued`).
+    fn clean_price_from_yield(&self, y: f64) -> PyResult<f64> {
+        self.inner
+            .clean_price_from_yield(y)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Yield-to-maturity from a quoted clean price.
+    fn yield_to_maturity(&self, clean_price: f64) -> PyResult<f64> {
+        self.inner
+            .yield_to_maturity(clean_price)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Dirty and clean price discounted on a yield curve, returned as a tuple.
+    fn price_from_curve(&self, curve: &YieldCurve) -> PyResult<(f64, f64)> {
+        self.inner
+            .price_from_curve(&curve.inner)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Macaulay duration at yield `y`.
+    fn macaulay_duration(&self, y: f64) -> PyResult<f64> {
+        self.inner
+            .macaulay_duration(y)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Modified duration at yield `y`.
+    fn modified_duration(&self, y: f64) -> PyResult<f64> {
+        self.inner
+            .modified_duration(y)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    /// Convexity at yield `y`.
+    fn convexity(&self, y: f64) -> PyResult<f64> {
+        self.inner
+            .convexity(y)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -365,5 +475,6 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(greeks, m)?)?;
     m.add_function(wrap_pyfunction!(implied_volatility, m)?)?;
     m.add_class::<YieldCurve>()?;
+    m.add_class::<FixedRateBond>()?;
     Ok(())
 }

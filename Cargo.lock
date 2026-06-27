@@ -235,11 +235,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "oxis-bonds"
+version = "0.0.0"
+dependencies = [
+ "oxis-core",
+ "oxis-curves",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "oxis-cli"
 version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "oxis-bonds",
  "oxis-core",
  "oxis-curves",
  "oxis-greeks",
@@ -311,6 +322,7 @@ dependencies = [
 name = "oxis-python"
 version = "0.0.0"
 dependencies = [
+ "oxis-bonds",
  "oxis-core",
  "oxis-curves",
  "oxis-greeks",

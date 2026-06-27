@@ -1,5 +1,6 @@
 //! CLI subcommands. Each is a thin `run(ctx)` wrapper over a pure module core.
 
+mod bond;
 mod curve;
 mod greeks;
 mod implied_vol;
@@ -36,6 +37,8 @@ pub enum Command {
     ImpliedVol(implied_vol::ImpliedVolArgs),
     /// Build a yield curve and query discount / zero / forward rates.
     Curve(curve::CurveArgs),
+    /// Price a fixed-rate bond and report yield / duration / convexity.
+    Bond(bond::BondArgs),
 }
 
 impl Command {
@@ -46,6 +49,7 @@ impl Command {
             Command::Greeks(args) => greeks::run(args, ctx),
             Command::ImpliedVol(args) => implied_vol::run(args, ctx),
             Command::Curve(args) => curve::run(args, ctx),
+            Command::Bond(args) => bond::run(args, ctx),
         }
     }
 }

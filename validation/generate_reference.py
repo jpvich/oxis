@@ -364,6 +364,99 @@ def gen_yield_curve():
     }
 
 
+# Fixed-rate bond reference. Bonds settle on a coupon date (issue = evaluation
+# date, 0 settlement days) so accrued = 0 and the 30/360 cashflow times are clean
+# fractions (k/frequency), which OXIS's regular schedule reproduces exactly. We
+# export the cashflow times + amounts so OXIS prices the identical stream, plus
+# QuantLib's clean/dirty price, round-tripped yield, duration, convexity (all
+# Compounded at the coupon frequency), and a flat-continuous-curve dirty price
+# (DiscountingBondEngine) to exercise curve-based discounting.
+BOND_DAY_COUNT = ql.Thirty360(ql.Thirty360.BondBasis)
+BOND_FACE = 100.0
+BOND_FLAT_RATE = 0.035  # continuous, for the curve-discounting leg
+
+# coupon, frequency (coupons/yr), maturity (years), test yield
+BOND_CASES = [
+    (0.05, 2, 5, 0.05),    # par: yield == coupon
+    (0.05, 2, 5, 0.04),    # premium
+    (0.05, 2, 5, 0.06),    # discount
+    (0.03, 2, 10, 0.045),
+    (0.06, 2, 7, 0.05),
+    (0.04, 1, 5, 0.04),    # annual
+    (0.04, 1, 8, 0.035),
+    (0.05, 4, 3, 0.045),   # quarterly
+    (0.00, 2, 5, 0.04),    # zero-coupon
+    (0.07, 2, 20, 0.05),   # long maturity
+    (0.02, 2, 2, -0.001),  # negative yield
+]
+
+_FREQ_ENUM = {1: ql.Annual, 2: ql.Semiannual, 4: ql.Quarterly}
+
+
+def gen_bonds():
+    """Fixed-rate bond prices & analytics via QuantLib FixedRateBond / BondFunctions."""
+    records = []
+    for coupon, freq, years, test_yield in BOND_CASES:
+        ql.Settings.instance().evaluationDate = EVAL_DATE
+        freq_enum = _FREQ_ENUM[freq]
+        maturity = EVAL_DATE + ql.Period(years, ql.Years)
+        schedule = ql.Schedule(
+            EVAL_DATE, maturity, ql.Period(freq_enum), CALENDAR,
+            ql.Unadjusted, ql.Unadjusted, ql.DateGeneration.Backward, False,
+        )
+        bond = ql.FixedRateBond(0, BOND_FACE, schedule, [coupon], BOND_DAY_COUNT)
+        settlement = bond.settlementDate()
+
+        # Future cashflows (time from settlement via the bond day count + amount).
+        # QuantLib emits the final coupon and the redemption as two cashflows on
+        # the same date; merge same-date flows so times are strictly increasing
+        # (matching OXIS's regular schedule, where the last flow is coupon + face).
+        merged = {}
+        for cf in bond.cashflows():
+            if cf.date() > settlement:
+                t = BOND_DAY_COUNT.yearFraction(settlement, cf.date())
+                merged[t] = merged.get(t, 0.0) + cf.amount()
+        times = sorted(merged)
+        amounts = [merged[t] for t in times]
+
+        rate = ql.InterestRate(test_yield, BOND_DAY_COUNT, ql.Compounded, freq_enum)
+        clean = bond.cleanPrice(test_yield, BOND_DAY_COUNT, ql.Compounded, freq_enum, settlement)
+        dirty = bond.dirtyPrice(test_yield, BOND_DAY_COUNT, ql.Compounded, freq_enum, settlement)
+        yield_rt = bond.bondYield(
+            ql.BondPrice(clean, ql.BondPrice.Clean),
+            BOND_DAY_COUNT, ql.Compounded, freq_enum, settlement,
+        )
+        mac = ql.BondFunctions.duration(bond, rate, ql.Duration.Macaulay, settlement)
+        mod = ql.BondFunctions.duration(bond, rate, ql.Duration.Modified, settlement)
+        conv = ql.BondFunctions.convexity(bond, rate, settlement)
+
+        # Curve-discounting leg: flat continuous curve, same day count.
+        ts = ql.YieldTermStructureHandle(
+            ql.FlatForward(settlement, BOND_FLAT_RATE, BOND_DAY_COUNT, ql.Continuous, ql.Annual)
+        )
+        bond.setPricingEngine(ql.DiscountingBondEngine(ts))
+        curve_dirty = bond.dirtyPrice()
+
+        records.append(
+            {
+                "coupon_rate": coupon, "frequency": freq, "maturity": years,
+                "face": BOND_FACE, "test_yield": test_yield,
+                "cashflow_times": times, "cashflow_amounts": amounts,
+                "accrued": bond.accruedAmount(settlement),
+                "clean_price": clean, "dirty_price": dirty, "yield_roundtrip": yield_rt,
+                "macaulay_duration": mac, "modified_duration": mod, "convexity": conv,
+                "flat_rate": BOND_FLAT_RATE, "curve_dirty_price": curve_dirty,
+            }
+        )
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "fixed-rate-bond", "engine": "FixedRateBond / BondFunctions",
+        "compounding": "compounded at coupon frequency; curve leg continuous",
+        "day_count": "Thirty360(BondBasis)", "evaluation_date": str(EVAL_DATE),
+        "tolerance": 1e-8, "cases": records,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -373,6 +466,7 @@ def main():
         "implied_vol.json": gen_implied_vol(),
         "monte_carlo_american.json": gen_monte_carlo_american(),
         "yield_curve.json": gen_yield_curve(),
+        "bonds.json": gen_bonds(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)

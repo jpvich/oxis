@@ -5,6 +5,7 @@ members = [
     "crates/oxis-pricing",
     "crates/oxis-greeks",
     "crates/oxis-curves",
+    "crates/oxis-bonds",
     "crates/oxis-cli",
     "crates/oxis-stats",
     "crates/oxis-portfolio",
@@ -45,6 +46,7 @@ oxis-core = { path = "crates/oxis-core" }
 oxis-pricing = { path = "crates/oxis-pricing" }
 oxis-greeks = { path = "crates/oxis-greeks" }
 oxis-curves = { path = "crates/oxis-curves" }
+oxis-bonds = { path = "crates/oxis-bonds" }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"
