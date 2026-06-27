@@ -68,12 +68,35 @@ returns).
 | Autocorrelation | `oxis-stats` | biased ACF (mean-centered, full denom), lags 1–5 | numpy reference | ≤ 1e-10 | **validated** |
 | Jarque-Bera | `oxis-stats` | `n/6·(S² + K²/4)`, χ²₂ p-value `exp(−JB/2)` | `scipy.stats.jarque_bera` | stat ≤ 1e-10; p-value ≤ 1e-7 | **validated** |
 
+## Ring 3 — portfolio analytics
+
+`oxis-portfolio` is the first **aggregate** module: it consumes `oxis-stats`
+(covariance, VaR) and the core's linear-algebra solver to value holdings and
+compute performance, allocation, risk, and Markowitz optimization. It is pure and
+sync — it operates on price/return records passed in, not a live data source.
+**Money is `f64`** (a deliberate, documented deviation from the spec's
+"decimal-precise money": the analytics are ratios / linear algebra validated
+against a float numpy oracle, where a decimal type cannot do `sqrt`/`exp`/matrix
+solves; exact-cent accounting belongs to a future transaction-ledger module).
+Oracle = numpy/scipy: matrix algebra via `np.linalg.solve`, IRR via
+`scipy.optimize.brentq`.
+
+| Family | Crate | Method | Reference | Tolerance | Status |
+|---|---|---|---|---|---|
+| Holdings valuation | `oxis-portfolio` | lot-tracked cost basis, mark-to-market value, unrealized P&L, weight | numpy closed form | ≤ 1e-10 | **validated** |
+| Time-weighted return | `oxis-portfolio` | geometric linking of sub-period returns `Vᵢ/(Vᵢ₋₁+flowᵢ)−1` | numpy `np.prod` | ≤ 1e-10 | **validated** |
+| Money-weighted return (IRR) | `oxis-portfolio` | root of Act/365 NPV `Σcf/(1+r)^t` via Brent | `scipy.optimize.brentq` | ≤ 1e-9 | **validated** |
+| Allocation weights | `oxis-portfolio` | `mvᵢ/Σmv` | numpy | ≤ 1e-10 | **validated** |
+| Risk aggregation | `oxis-portfolio` | population covariance matrix, `wᵀΣw` vol, portfolio VaR (reuses `oxis-stats`) | `np.cov(bias=True)`, `np.quantile`, `scipy.stats.norm` | ≤ 1e-10 | **validated** |
+| Markowitz optimization | `oxis-portfolio` | unconstrained closed form — min-variance / tangency / efficient-frontier via `Σ⁻¹` (solved, shorting allowed) | `numpy.linalg.solve` | ≤ 1e-10 (max ~8.7e-16) | **validated** |
+
 ## Core numerics
 
 | Primitive | Crate | Method | Reference | Status |
 |---|---|---|---|---|
 | Normal CDF / PDF | `oxis-core` | high-accuracy `erf`/`erfc`-based (~1e-15) | known values (unit-tested) + cross-checked through Black-Scholes (≤2.5e-14 vs QuantLib) | **validated** |
 | Polynomial least-squares | `oxis-core` | normal equations + Gaussian elimination (LSM regression) | known polynomials (unit-tested) | **implemented** |
+| Linear solve / matrix inverse | `oxis-core` | dense Gaussian elimination + partial pivoting (`solve_linear_system`, `invert`); shared by LSM regression and Markowitz | known systems (unit-tested) + cross-checked through Markowitz (≤1e-10 vs `numpy.linalg.solve`) | **validated** |
 | 1-D interpolation | `oxis-core` | piecewise-linear + natural cubic spline (tridiagonal solve) | known functions (unit-tested) + cross-checked through yield curves (≤1e-10 vs QuantLib) | **validated** |
 | Day-count year fraction | `oxis-core` | Act/365, Act/360, 30/360 (US) | hand-checked | **implemented** (unit-tested) |
 

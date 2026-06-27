@@ -13,6 +13,7 @@
 //! well-conditioned.
 
 use crate::error::OxisError;
+use crate::math::linalg::gaussian_solve;
 
 /// Fit `ys ≈ Σ cᵢ·xⁱ` (monomial basis, `i = 0..=degree`) by least squares.
 ///
@@ -72,57 +73,6 @@ pub fn poly_least_squares(xs: &[f64], ys: &[f64], degree: usize) -> Result<Vec<f
     }
 
     gaussian_solve(aug, n)
-}
-
-/// Solve the `n`×`n` system in the augmented matrix `aug` (`n` rows, `n + 1`
-/// columns) by Gaussian elimination with partial pivoting.
-fn gaussian_solve(mut aug: Vec<Vec<f64>>, n: usize) -> Result<Vec<f64>, OxisError> {
-    for col in 0..n {
-        // Partial pivot: pick the row with the largest magnitude in this column.
-        let mut pivot = col;
-        let mut best = aug[col][col].abs();
-        for (r, row) in aug.iter().enumerate().take(n).skip(col + 1) {
-            let v = row[col].abs();
-            if v > best {
-                best = v;
-                pivot = r;
-            }
-        }
-        if best < 1e-300 {
-            return Err(OxisError::numerical(
-                "poly_least_squares: singular system (degenerate inputs)",
-            ));
-        }
-        aug.swap(col, pivot);
-
-        // Eliminate below the pivot. Clone the pivot row so each lower row can be
-        // borrowed mutably without aliasing (the matrix is tiny).
-        let pivot_row = aug[col].clone();
-        let pivot_diag = pivot_row[col];
-        for row in aug.iter_mut().skip(col + 1) {
-            let factor = row[col] / pivot_diag;
-            for (cell, &pv) in row.iter_mut().zip(pivot_row.iter()).skip(col) {
-                *cell -= factor * pv;
-            }
-        }
-    }
-
-    // Back-substitution.
-    let mut coeffs = vec![0.0_f64; n];
-    for i in (0..n).rev() {
-        let mut acc = aug[i][n];
-        for j in (i + 1)..n {
-            acc -= aug[i][j] * coeffs[j];
-        }
-        let c = acc / aug[i][i];
-        if !c.is_finite() {
-            return Err(OxisError::numerical(
-                "poly_least_squares: non-finite coefficient",
-            ));
-        }
-        coeffs[i] = c;
-    }
-    Ok(coeffs)
 }
 
 #[cfg(test)]

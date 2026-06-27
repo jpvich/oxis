@@ -5,6 +5,7 @@ mod curve;
 mod exotic;
 mod greeks;
 mod implied_vol;
+mod portfolio;
 mod price;
 mod simulate;
 mod stats;
@@ -48,6 +49,8 @@ pub enum Command {
     Simulate(simulate::SimulateArgs),
     /// Compute descriptive, risk, and performance statistics for a series.
     Stats(stats::StatsArgs),
+    /// Portfolio valuation, performance, allocation, risk, and optimization.
+    Portfolio(portfolio::PortfolioArgs),
 }
 
 impl Command {
@@ -62,6 +65,7 @@ impl Command {
             Command::Exotic(args) => exotic::run(args, ctx),
             Command::Simulate(args) => simulate::run(args, ctx),
             Command::Stats(args) => stats::run(args, ctx),
+            Command::Portfolio(args) => portfolio::run(args, ctx),
         }
     }
 }

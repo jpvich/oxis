@@ -11,6 +11,12 @@ use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
+use oxis_portfolio::{
+    Holding, covariance_matrix as cov_matrix_core, efficient_frontier_point,
+    min_variance_weights as min_var_core, mwr as mwr_core, portfolio_risk as portfolio_risk_core,
+    tangency_weights as tangency_core, twr as twr_core, value_holdings,
+    weights as alloc_weights_core,
+};
 use oxis_pricing::{
     BarrierType, DEFAULT_STEPS, LookbackStrike, McConfig,
     arithmetic_asian_price as arith_asian_core, barrier_price as barrier_core,
@@ -907,6 +913,158 @@ fn acf(values: Vec<f64>, max_lag: usize) -> PyResult<Vec<f64>> {
     stats_acf(&values, max_lag).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ----------------------------------------------------------------------------
+// Portfolio analytics (Ring 3, M7).
+// ----------------------------------------------------------------------------
+
+/// Parse an ISO `YYYY-MM-DD` string into core year/month/day.
+fn parse_iso_date(s: &str) -> PyResult<oxis_core::Date> {
+    let parts: Vec<&str> = s.split('-').collect();
+    if parts.len() != 3 {
+        return Err(PyValueError::new_err(format!(
+            "date must be YYYY-MM-DD, got {s:?}"
+        )));
+    }
+    let y = parts[0]
+        .parse::<i32>()
+        .map_err(|_| PyValueError::new_err("bad year"))?;
+    let m = parts[1]
+        .parse::<u8>()
+        .map_err(|_| PyValueError::new_err("bad month"))?;
+    let d = parts[2]
+        .parse::<u8>()
+        .map_err(|_| PyValueError::new_err("bad day"))?;
+    oxis_core::Date::new(y, m, d).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Mark-to-market value holdings, returning totals + a per-holding breakdown.
+///
+/// `holdings` is a list of `(symbol, quantity, unit_cost, price)` tuples.
+///
+/// ```python
+/// oxis.portfolio_value([("AAPL", 10, 150, 175), ("MSFT", 5, 300, 320)])
+/// ```
+#[pyfunction]
+fn portfolio_value<'py>(
+    py: Python<'py>,
+    holdings: Vec<(String, f64, f64, f64)>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let mut hs = Vec::with_capacity(holdings.len());
+    let mut prices = Vec::with_capacity(holdings.len());
+    for (sym, qty, cost, price) in &holdings {
+        hs.push(Holding::single(sym.clone(), *qty, *cost));
+        prices.push(*price);
+    }
+    let v = value_holdings(&hs, &prices).map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    let rows = pyo3::types::PyList::empty(py);
+    for h in &v.holdings {
+        let d = PyDict::new(py);
+        d.set_item("symbol", &h.symbol)?;
+        d.set_item("quantity", h.quantity)?;
+        d.set_item("average_cost", h.average_cost)?;
+        d.set_item("price", h.price)?;
+        d.set_item("cost_basis", h.cost_basis)?;
+        d.set_item("market_value", h.market_value)?;
+        d.set_item("unrealized_pnl", h.unrealized_pnl)?;
+        d.set_item("unrealized_pnl_pct", h.unrealized_pnl_pct)?;
+        d.set_item("weight", h.weight)?;
+        rows.append(d)?;
+    }
+    let out = PyDict::new(py);
+    out.set_item("n_holdings", v.n_holdings)?;
+    out.set_item("total_cost_basis", v.total_cost_basis)?;
+    out.set_item("total_market_value", v.total_market_value)?;
+    out.set_item("total_unrealized_pnl", v.total_unrealized_pnl)?;
+    out.set_item("total_unrealized_pnl_pct", v.total_unrealized_pnl_pct)?;
+    out.set_item("holdings", rows)?;
+    Ok(out)
+}
+
+/// Time-weighted return from period-boundary valuations and sub-period flows.
+#[pyfunction]
+fn twr(values: Vec<f64>, flows: Vec<f64>) -> PyResult<f64> {
+    twr_core(&values, &flows).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Money-weighted return (IRR) from ISO `dates` and aligned `amounts`
+/// (invested negative, received positive).
+#[pyfunction]
+fn mwr(dates: Vec<String>, amounts: Vec<f64>) -> PyResult<f64> {
+    if dates.len() != amounts.len() {
+        return Err(PyValueError::new_err(
+            "dates and amounts must be the same length",
+        ));
+    }
+    let mut cfs = Vec::with_capacity(dates.len());
+    for (d, a) in dates.iter().zip(amounts.iter()) {
+        cfs.push((parse_iso_date(d)?, *a));
+    }
+    mwr_core(&cfs).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Allocation weights from market values.
+#[pyfunction]
+fn allocation(market_values: Vec<f64>) -> PyResult<Vec<f64>> {
+    alloc_weights_core(&market_values).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// The population covariance matrix of N aligned asset-return series.
+#[pyfunction]
+fn covariance_matrix(returns: Vec<Vec<f64>>) -> PyResult<Vec<Vec<f64>>> {
+    cov_matrix_core(&returns).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Portfolio risk (variance, volatility, VaR) from asset returns + weights.
+#[pyfunction]
+#[pyo3(signature = (returns, weights, periods_per_year=252.0, confidence=0.95))]
+fn portfolio_risk<'py>(
+    py: Python<'py>,
+    returns: Vec<Vec<f64>>,
+    weights: Vec<f64>,
+    periods_per_year: f64,
+    confidence: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let r = portfolio_risk_core(&returns, &weights, periods_per_year, confidence)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("variance", r.variance)?;
+    d.set_item("volatility", r.volatility)?;
+    d.set_item("annualized_volatility", r.annualized_volatility)?;
+    d.set_item("historical_var", r.historical_var)?;
+    d.set_item("parametric_var", r.parametric_var)?;
+    d.set_item("confidence", r.confidence)?;
+    d.set_item("periods_per_year", r.periods_per_year)?;
+    Ok(d)
+}
+
+/// Markowitz optimization: min-variance, tangency, and (if `target` is given)
+/// efficient-frontier weights. Unconstrained / closed-form (shorting allowed).
+#[pyfunction]
+#[pyo3(signature = (mean, cov, rf=0.0, target=None))]
+fn optimize<'py>(
+    py: Python<'py>,
+    mean: Vec<f64>,
+    cov: Vec<Vec<f64>>,
+    rf: f64,
+    target: Option<f64>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let mv = min_var_core(&cov).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let tan = tangency_core(&cov, &mean, rf).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let frontier = match target {
+        Some(t) => Some(
+            efficient_frontier_point(&cov, &mean, t)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?,
+        ),
+        None => None,
+    };
+    let d = PyDict::new(py);
+    d.set_item("min_variance_weights", mv)?;
+    d.set_item("tangency_weights", tan)?;
+    d.set_item("frontier_weights", frontier)?;
+    Ok(d)
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -933,6 +1091,13 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(info_ratio, m)?)?;
     m.add_function(wrap_pyfunction!(jarque_bera, m)?)?;
     m.add_function(wrap_pyfunction!(acf, m)?)?;
+    m.add_function(wrap_pyfunction!(portfolio_value, m)?)?;
+    m.add_function(wrap_pyfunction!(twr, m)?)?;
+    m.add_function(wrap_pyfunction!(mwr, m)?)?;
+    m.add_function(wrap_pyfunction!(allocation, m)?)?;
+    m.add_function(wrap_pyfunction!(covariance_matrix, m)?)?;
+    m.add_function(wrap_pyfunction!(portfolio_risk, m)?)?;
+    m.add_function(wrap_pyfunction!(optimize, m)?)?;
     m.add_class::<YieldCurve>()?;
     m.add_class::<FixedRateBond>()?;
     Ok(())

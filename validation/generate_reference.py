@@ -23,10 +23,13 @@ import json
 import math
 import os
 
+import datetime
+
 import numpy as np
 import QuantLib as ql
 import scipy
 from scipy import stats as sps
+from scipy.optimize import brentq
 
 # Fixed evaluation date for reproducibility (do NOT use "today").
 EVAL_DATE = ql.Date(15, 6, 2026)
@@ -935,6 +938,124 @@ def gen_stats():
     }
 
 
+# ----------------------------------------------------------------------------
+# Portfolio analytics (Ring 3, M7) — oracle is numpy / scipy.
+# ----------------------------------------------------------------------------
+
+# Conventions mirror oxis-portfolio exactly: f64 money; TWR sub-period flows at
+# start; MWR = Act/365 NPV root; population covariance (np.cov bias=True);
+# Markowitz via np.linalg.solve (not inv); positive-loss VaR.
+
+# (symbol, quantity, unit_cost, price)
+PORT_HOLDINGS = [("AAPL", 10.0, 150.0, 175.0), ("MSFT", 5.0, 300.0, 320.0), ("NVDA", 8.0, 400.0, 650.0)]
+PORT_VALUES = [100000.0, 102000.0, 101500.0, 108000.0]
+PORT_FLOWS = [0.0, 5000.0, -2000.0]
+PORT_CF_DATES = ["2024-01-01", "2024-07-01", "2025-01-01"]
+PORT_CF_AMOUNTS = [-10000.0, -5000.0, 16000.0]
+OPT_MEAN = [0.08, 0.10, 0.13]
+OPT_COV = [
+    [0.0100, 0.0018, 0.0011],
+    [0.0018, 0.0109, 0.0026],
+    [0.0011, 0.0026, 0.0199],
+]
+OPT_RF = 0.02
+OPT_TARGET = 0.11
+RISK_RETURNS = [
+    [0.012, -0.008, 0.020, -0.015, 0.005, 0.018, -0.010, 0.022],
+    [0.009, -0.005, 0.014, -0.011, 0.004, 0.013, -0.007, 0.017],
+    [0.020, 0.002, -0.012, 0.025, -0.018, 0.010, 0.006, -0.009],
+]
+RISK_WEIGHTS = [0.40, 0.35, 0.25]
+RISK_PPY = 252.0
+RISK_CONF = 0.95
+
+
+def _npv(amounts, days, r):
+    return sum(cf / (1.0 + r) ** (d / 365.0) for cf, d in zip(amounts, days))
+
+
+def gen_portfolio():
+    """Portfolio valuation, performance, allocation, risk, optimization."""
+    cases = []
+
+    # Valuation.
+    mvs = [q * p for (_s, q, _c, p) in PORT_HOLDINGS]
+    bases = [q * c for (_s, q, c, _p) in PORT_HOLDINGS]
+    total_mv, total_cost = sum(mvs), sum(bases)
+    cases.append({
+        "name": "valuation",
+        "holdings": [[s, q, c, p] for (s, q, c, p) in PORT_HOLDINGS],
+        "market_values": mvs,
+        "unrealized_pnls": [mv - b for mv, b in zip(mvs, bases)],
+        "weights": [mv / total_mv for mv in mvs],
+        "total_cost_basis": total_cost,
+        "total_market_value": total_mv,
+        "total_unrealized_pnl": total_mv - total_cost,
+    })
+
+    # TWR.
+    twr = 1.0
+    for i in range(len(PORT_FLOWS)):
+        twr *= PORT_VALUES[i + 1] / (PORT_VALUES[i] + PORT_FLOWS[i])
+    cases.append({"name": "twr", "values": PORT_VALUES, "flows": PORT_FLOWS, "twr": twr - 1.0})
+
+    # MWR (IRR via Act/365 NPV root).
+    first = datetime.date.fromisoformat(PORT_CF_DATES[0])
+    days = [(datetime.date.fromisoformat(d) - first).days for d in PORT_CF_DATES]
+    irr = brentq(lambda r: _npv(PORT_CF_AMOUNTS, days, r), -0.999, 10.0, xtol=1e-14, rtol=1e-15)
+    cases.append({"name": "mwr", "dates": PORT_CF_DATES, "amounts": PORT_CF_AMOUNTS, "mwr": irr})
+
+    # Allocation.
+    cases.append({"name": "allocation", "market_values": mvs, "weights": [mv / total_mv for mv in mvs]})
+
+    # Risk aggregation.
+    R = np.asarray(RISK_RETURNS, dtype=float)
+    w = np.asarray(RISK_WEIGHTS, dtype=float)
+    cov = np.cov(R, bias=True)
+    variance = float(w @ cov @ w)
+    vol = math.sqrt(variance)
+    port = w @ R  # weighted portfolio return series
+    hist_var = float(-np.quantile(port, 1.0 - RISK_CONF, method="linear"))
+    z = sps.norm.ppf(1.0 - RISK_CONF)
+    param_var = float(-(np.mean(port) + z * np.std(port, ddof=0)))
+    cases.append({
+        "name": "risk",
+        "returns": RISK_RETURNS, "weights": RISK_WEIGHTS,
+        "periods_per_year": RISK_PPY, "confidence": RISK_CONF,
+        "variance": variance, "volatility": vol,
+        "annualized_volatility": vol * math.sqrt(RISK_PPY),
+        "historical_var": hist_var, "parametric_var": param_var,
+    })
+
+    # Markowitz optimization (np.linalg.solve, not inv).
+    C = np.asarray(OPT_COV, dtype=float)
+    mu = np.asarray(OPT_MEAN, dtype=float)
+    ones = np.ones(len(mu))
+    x1 = np.linalg.solve(C, ones)
+    xmu = np.linalg.solve(C, mu)
+    A, B, Cc = float(ones @ x1), float(ones @ xmu), float(mu @ xmu)
+    D = A * Cc - B * B
+    min_var = (x1 / A).tolist()
+    z_tan = np.linalg.solve(C, mu - OPT_RF * ones)
+    tangency = (z_tan / z_tan.sum()).tolist()
+    frontier = (x1 * (Cc - B * OPT_TARGET) / D + xmu * (A * OPT_TARGET - B) / D).tolist()
+    cases.append({
+        "name": "optimize",
+        "mean": OPT_MEAN, "cov": OPT_COV, "rf": OPT_RF, "target": OPT_TARGET,
+        "min_variance_weights": min_var, "tangency_weights": tangency,
+        "frontier_weights": frontier,
+    })
+
+    return {
+        "oracle": "numpy/scipy/pandas",
+        "oracle_version": f"numpy {np.__version__}, scipy {scipy.__version__}",
+        "model": "portfolio",
+        "tolerance": 1e-10,
+        "irr_tolerance": 1e-9,
+        "cases": cases,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -951,6 +1072,7 @@ def main():
         "asian.json": gen_asian(),
         "heston_european.json": gen_heston_european(),
         "stats.json": gen_stats(),
+        "portfolio.json": gen_portfolio(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)
