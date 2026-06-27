@@ -22,4 +22,5 @@ oxis-core = { workspace = true }
 oxis-pricing = { workspace = true }
 oxis-greeks = { workspace = true }
 oxis-curves = { workspace = true }
+oxis-bonds = { workspace = true }
 pyo3 = { workspace = true, features = ["extension-module"] }

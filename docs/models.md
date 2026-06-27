@@ -26,6 +26,7 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 | Model | Crate | Method | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
 | Yield curve / term structure | `oxis-curves` | interpolated discount/zero/forward — linear (zero rates), log-linear (discount factors), natural cubic (zero rates) | QuantLib `ZeroCurve` / `DiscountCurve` / `NaturalCubicZeroCurve` (1.42.1, 51 queries) | ≤ 1e-10 (max ~4.3e-16) | **validated** |
+| Fixed-rate bond | `oxis-bonds` | cashflow PV (flat yield compounded@freq, or curve discounting); YTM (Brent); Macaulay/modified duration; convexity | QuantLib `FixedRateBond` / `BondFunctions` (1.42.1, 11 bonds) | ≤ 1e-8 (max ~9.5e-9) | **validated** |
 
 ## Core numerics
 
@@ -84,6 +85,16 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
   spline (a global fit) to match node-for-node. Curves do **not** extrapolate: a
   query outside `[t_first, t_last]` (other than `t = 0`) is an error, matching
   QuantLib without `enableExtrapolation()`.
+- **Bonds** are modelled by their cashflows `(t_i, amount_i)` from settlement plus
+  the accrued interest (so the financial math is exact and validateable without
+  reimplementing calendar/schedule machinery, which is deferred). Yield-to-maturity,
+  Macaulay/modified duration, and convexity use **compounding at the coupon
+  frequency** `(1 + y/f)^(−f·t)` — the market and QuantLib `Compounded@freq`
+  convention; **curve discounting** (via `oxis-curves`) stays continuous. Prices
+  are quoted per face with `clean = dirty − accrued`. Validation settles on a coupon
+  date (`accrued = 0`) with a `Thirty360(BondBasis)`, `NullCalendar`, `Unadjusted`
+  schedule, so the ergonomic `regular` builder reproduces QuantLib's cashflows
+  exactly. Bootstrapping a curve from bond/swap quotes is a separate, later module.
 
 ## Edge-case contract (applies to every pricing model)
 
