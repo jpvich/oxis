@@ -22,5 +22,6 @@ oxis-pricing = { workspace = true }
 oxis-greeks = { workspace = true }
 oxis-curves = { workspace = true }
 oxis-bonds = { workspace = true }
+oxis-stochastic = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

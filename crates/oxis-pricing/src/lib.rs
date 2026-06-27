@@ -9,19 +9,25 @@
 
 #![forbid(unsafe_code)]
 
+mod asian;
+mod barrier;
 mod binomial;
 mod black_scholes;
 mod implied_vol;
+mod lookback;
 mod lsm;
 mod monte_carlo;
 mod result;
 
+pub use asian::{arithmetic_asian_price, geometric_asian_price};
+pub use barrier::{BarrierType, barrier_price};
 pub use binomial::{DEFAULT_STEPS, binomial};
 pub use black_scholes::black_scholes;
 pub use implied_vol::{ImpliedVolResult, implied_volatility};
+pub use lookback::{LookbackStrike, lookback_price};
 pub use lsm::lsm_american;
 pub use monte_carlo::{McConfig, McEstimate, monte_carlo_european};
-pub use result::PriceResult;
+pub use result::{ExoticResult, PriceResult};
 
 #[cfg(test)]
 mod tests {

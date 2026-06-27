@@ -9,9 +9,13 @@
 mod distributions;
 mod interpolate;
 mod regression;
+mod rng;
+mod sample;
 mod solvers;
 
 pub use distributions::{normal_cdf, normal_pdf};
 pub use interpolate::{NaturalCubicSpline, linear_interpolate};
 pub use regression::poly_least_squares;
+pub use rng::{path_seed, splitmix64};
+pub use sample::{mean_and_se, sample_mean_var};
 pub use solvers::{brent, newton};

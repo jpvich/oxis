@@ -1,7 +1,7 @@
 [package]
-name = "oxis-pricing"
+name = "oxis-stochastic"
 version = "0.0.0"
-description = "Option pricing models for OXIS (Black-Scholes, binomial, Monte Carlo), validated against QuantLib."
+description = "Stochastic process generators for OXIS (GBM, OU, Vasicek, CIR, Merton jump-diffusion, Heston) — reproducible path simulation, validated against closed-form moments."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 oxis-core = { workspace = true }
-oxis-stochastic = { workspace = true }
 serde = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }

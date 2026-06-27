@@ -457,6 +457,308 @@ def gen_bonds():
     }
 
 
+# Stochastic-process reference cases. The oracle here is the *closed-form moment*
+# of each process (no QuantLib needed) — the right ground truth for a path
+# simulator. `steps`/`paths`/`seed` tell the Rust simulator how to sample; the
+# `std_rel_tol` is the relative band on the terminal std (looser for the
+# full-truncation square-root schemes, which carry an O(dt) discretization bias).
+PROCESS_CASES = [
+    # process, params, x0, t, steps, paths, seed, std_rel_tol
+    ("gbm", dict(mu=0.05, sigma=0.20), 100.0, 1.0, 4, 400_000, 1001, 0.05),
+    ("gbm", dict(mu=0.03, sigma=0.50), 100.0, 2.0, 4, 400_000, 1002, 0.10),
+    ("ornstein-uhlenbeck", dict(kappa=2.0, theta=0.05, sigma=0.02), 0.10, 1.0, 8, 400_000, 1003, 0.04),
+    ("vasicek", dict(kappa=1.0, theta=0.03, sigma=0.01), 0.02, 2.0, 8, 400_000, 1004, 0.04),
+    ("cir", dict(kappa=1.5, theta=0.04, sigma=0.10), 0.05, 1.0, 250, 400_000, 1005, 0.08),
+    ("cir", dict(kappa=2.0, theta=0.04, sigma=0.25), 0.04, 2.0, 400, 400_000, 1006, 0.12),
+    ("merton-jump", dict(mu=0.05, sigma=0.20, lambda_=0.5, jump_mean=-0.10, jump_std=0.15), 100.0, 1.0, 50, 400_000, 1007, 0.10),
+    ("heston", dict(mu=0.04, v0=0.04, kappa=1.5, theta=0.04, xi=0.30, rho=-0.60), 100.0, 1.0, 250, 400_000, 1008, 0.0),
+]
+
+
+def _process_moments(name, p, x0, t):
+    """Closed-form terminal mean and variance of a process (independent of the
+    Rust implementation). Returns (mean, var) with var None where no simple closed
+    form is used (Heston — validated via the AnalyticHestonEngine price tie-in)."""
+    if name == "gbm":
+        mu, s = p["mu"], p["sigma"]
+        mean = x0 * math.exp(mu * t)
+        var = x0 * x0 * math.exp(2 * mu * t) * (math.exp(s * s * t) - 1.0)
+        return mean, var
+    if name in ("ornstein-uhlenbeck", "vasicek"):
+        k, th, s = p["kappa"], p["theta"], p["sigma"]
+        e = math.exp(-k * t)
+        mean = x0 * e + th * (1.0 - e)
+        var = s * s / (2 * k) * (1.0 - math.exp(-2 * k * t))
+        return mean, var
+    if name == "cir":
+        k, th, s = p["kappa"], p["theta"], p["sigma"]
+        e = math.exp(-k * t)
+        mean = th + (x0 - th) * e
+        var = x0 * (s * s / k) * (e - e * e) + th * (s * s / (2 * k)) * (1.0 - e) ** 2
+        return mean, var
+    if name == "merton-jump":
+        mu, s, lam = p["mu"], p["sigma"], p["lambda_"]
+        jm, js = p["jump_mean"], p["jump_std"]
+        k1 = math.exp(jm + 0.5 * js * js)
+        k2 = math.exp(2 * jm + 2 * js * js)
+        mean = x0 * math.exp(mu * t) * math.exp(lam * t * (k1 - 1.0))
+        e_s2 = x0 * x0 * math.exp(2 * mu * t + s * s * t) * math.exp(lam * t * (k2 - 1.0))
+        return mean, e_s2 - mean * mean
+    if name == "heston":
+        return x0 * math.exp(p["mu"] * t), None
+    raise ValueError(f"unknown process {name}")
+
+
+def gen_processes():
+    """Closed-form terminal moments for the stochastic process generators."""
+    records = []
+    for name, p, x0, t, steps, paths, seed, std_rel_tol in PROCESS_CASES:
+        mean, var = _process_moments(name, p, x0, t)
+        rec = {
+            "process": name, "x0": x0, "t": t,
+            "steps": steps, "paths": paths, "seed": seed,
+            "mean": mean, "var": var, "std_rel_tol": std_rel_tol,
+            # Parameters (JSON-friendly: `lambda_` -> `lambda` is reserved, keep as is).
+            "mu": p.get("mu"), "sigma": p.get("sigma"),
+            "kappa": p.get("kappa"), "theta": p.get("theta"),
+            "lambda": p.get("lambda_"),
+            "jump_mean": p.get("jump_mean"), "jump_std": p.get("jump_std"),
+            "v0": p.get("v0"), "xi": p.get("xi"), "rho": p.get("rho"),
+        }
+        records.append(rec)
+    return {
+        "oracle": "closed-form", "oracle_version": "analytic-moments",
+        "model": "stochastic-process-generators",
+        "note": "terminal mean/var are exact closed forms; Heston variance omitted "
+                "(validated via AnalyticHestonEngine price tie-in in oxis-pricing)",
+        "cases": records,
+    }
+
+
+# ----------------------------------------------------------------------------
+# Exotic options (Ring 2): barrier, lookback, Asian.
+# ----------------------------------------------------------------------------
+
+# spot, strike, rate, vol, div, days, type, barrier_type, barrier.
+# Down barriers sit below spot, up barriers above, so the option starts on the
+# live side (the closed form's domain).
+BARRIER_CASES = [
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "call", "down-out", 90.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "call", "down-in", 90.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "call", "up-out", 130.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "call", "up-in", 130.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "put", "down-out", 90.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "put", "down-in", 90.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "put", "up-out", 130.0),
+    (100.0, 100.0, 0.05, 0.25, 0.00, 365, "put", "up-in", 130.0),
+    # strike below / above barrier, dividends, other maturities
+    (100.0, 95.0, 0.04, 0.30, 0.02, 365, "call", "down-in", 97.0),
+    (100.0, 110.0, 0.04, 0.30, 0.02, 365, "call", "up-out", 120.0),
+    (100.0, 105.0, 0.03, 0.20, 0.01, 180, "put", "down-out", 85.0),
+    (100.0, 100.0, 0.06, 0.40, 0.00, 730, "call", "up-in", 115.0),
+]
+
+
+def gen_barrier():
+    """Single-barrier prices via QuantLib's AnalyticBarrierEngine (rebate 0)."""
+    ql.Settings.instance().evaluationDate = EVAL_DATE
+    bt_map = {
+        "down-in": ql.Barrier.DownIn, "down-out": ql.Barrier.DownOut,
+        "up-in": ql.Barrier.UpIn, "up-out": ql.Barrier.UpOut,
+    }
+    records = []
+    for spot, strike, rate, vol, div, days, kind, btype, barrier in BARRIER_CASES:
+        process = _process(spot, rate, vol, div)
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        otype = ql.Option.Call if kind == "call" else ql.Option.Put
+        payoff = ql.PlainVanillaPayoff(otype, strike)
+        exercise = ql.EuropeanExercise(_exercise_date(days))
+        opt = ql.BarrierOption(bt_map[btype], barrier, 0.0, payoff, exercise)
+        opt.setPricingEngine(ql.AnalyticBarrierEngine(process))
+        records.append({
+            "spot": spot, "strike": strike, "rate": rate, "vol": vol, "div": div,
+            "t": t, "type": kind, "barrier_type": btype, "barrier": barrier,
+            "price": opt.NPV(),
+        })
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "single-barrier", "engine": "AnalyticBarrierEngine",
+        "monitoring": "continuous", "rebate": 0.0,
+        "tolerance": 1e-8, "cases": records,
+    }
+
+
+# spot, strike, rate, vol, div, days, type, strike_type.
+LOOKBACK_CASES = [
+    (100.0, 0.0, 0.06, 0.30, 0.02, 365, "call", "floating"),
+    (100.0, 0.0, 0.06, 0.30, 0.02, 365, "put", "floating"),
+    (100.0, 0.0, 0.04, 0.20, 0.00, 180, "call", "floating"),
+    (100.0, 95.0, 0.06, 0.30, 0.02, 365, "call", "fixed"),
+    (100.0, 105.0, 0.06, 0.30, 0.02, 365, "put", "fixed"),
+    (100.0, 110.0, 0.04, 0.25, 0.01, 365, "call", "fixed"),
+    (100.0, 90.0, 0.04, 0.25, 0.01, 365, "put", "fixed"),
+    (100.0, 100.0, 0.05, 0.40, 0.00, 730, "call", "fixed"),
+]
+
+
+def gen_lookback():
+    """Continuous lookback prices via QuantLib's analytic lookback engines.
+
+    Freshly issued: the realized extremum equals the spot at inception, so the
+    `minmax` argument is the spot for both floating and fixed strikes."""
+    ql.Settings.instance().evaluationDate = EVAL_DATE
+    records = []
+    for spot, strike, rate, vol, div, days, kind, stype in LOOKBACK_CASES:
+        process = _process(spot, rate, vol, div)
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        otype = ql.Option.Call if kind == "call" else ql.Option.Put
+        exercise = ql.EuropeanExercise(_exercise_date(days))
+        if stype == "floating":
+            opt = ql.ContinuousFloatingLookbackOption(
+                spot, ql.FloatingTypePayoff(otype), exercise
+            )
+            opt.setPricingEngine(ql.AnalyticContinuousFloatingLookbackEngine(process))
+        else:
+            opt = ql.ContinuousFixedLookbackOption(
+                spot, ql.PlainVanillaPayoff(otype, strike), exercise
+            )
+            opt.setPricingEngine(ql.AnalyticContinuousFixedLookbackEngine(process))
+        records.append({
+            "spot": spot, "strike": strike, "rate": rate, "vol": vol, "div": div,
+            "t": t, "type": kind, "strike_type": stype, "price": opt.NPV(),
+        })
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "continuous-lookback",
+        "engine": "AnalyticContinuousFloating/FixedLookbackEngine",
+        "monitoring": "continuous", "issue": "fresh (extremum = spot)",
+        "tolerance": 1e-8, "cases": records,
+    }
+
+
+# Geometric (closed form): spot, strike, rate, vol, div, days, type.
+ASIAN_GEO_CASES = [
+    (100.0, 100.0, 0.05, 0.20, 0.00, 365, "call"),
+    (100.0, 100.0, 0.05, 0.20, 0.00, 365, "put"),
+    (100.0, 95.0, 0.05, 0.25, 0.02, 365, "call"),
+    (100.0, 105.0, 0.05, 0.25, 0.02, 365, "put"),
+    (100.0, 100.0, 0.03, 0.40, 0.00, 730, "call"),
+]
+# Arithmetic (MC): spot, strike, rate, vol, div, n_fixings, step_days, type, seed.
+# days = n*step so the QuantLib fixing year-fractions are exactly i·T/n, matching
+# the OXIS continuous grid.
+ASIAN_ARITH_CASES = [
+    (100.0, 100.0, 0.05, 0.20, 0.00, 12, 30, "call", 101),
+    (100.0, 100.0, 0.05, 0.20, 0.00, 12, 30, "put", 102),
+    (100.0, 95.0, 0.05, 0.25, 0.02, 25, 30, "call", 103),
+    (100.0, 105.0, 0.04, 0.30, 0.01, 50, 14, "put", 104),
+]
+ASIAN_MC_SAMPLES = 600_000
+
+
+def gen_asian():
+    """Asian average-price options: geometric (closed form) + arithmetic (MC)."""
+    ql.Settings.instance().evaluationDate = EVAL_DATE
+    records = []
+    for spot, strike, rate, vol, div, days, kind in ASIAN_GEO_CASES:
+        process = _process(spot, rate, vol, div)
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        otype = ql.Option.Call if kind == "call" else ql.Option.Put
+        exercise = ql.EuropeanExercise(_exercise_date(days))
+        opt = ql.ContinuousAveragingAsianOption(
+            ql.Average.Geometric, ql.PlainVanillaPayoff(otype, strike), exercise
+        )
+        opt.setPricingEngine(
+            ql.AnalyticContinuousGeometricAveragePriceAsianEngine(process)
+        )
+        records.append({
+            "average": "geometric", "spot": spot, "strike": strike, "rate": rate,
+            "vol": vol, "div": div, "t": t, "type": kind, "price": opt.NPV(),
+            "ql_error": None, "n_fixings": None, "paths": None, "seed": None,
+        })
+    for spot, strike, rate, vol, div, n, step, kind, seed in ASIAN_ARITH_CASES:
+        days = n * step
+        process = _process(spot, rate, vol, div)
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        otype = ql.Option.Call if kind == "call" else ql.Option.Put
+        exercise = ql.EuropeanExercise(_exercise_date(days))
+        fixing_dates = [_exercise_date(i * step) for i in range(1, n + 1)]
+        opt = ql.DiscreteAveragingAsianOption(
+            ql.Average.Arithmetic, 0.0, 0, fixing_dates,
+            ql.PlainVanillaPayoff(otype, strike), exercise,
+        )
+        engine = ql.MCDiscreteArithmeticAPEngine(
+            process, "pseudorandom", brownianBridge=False, antitheticVariate=True,
+            requiredSamples=ASIAN_MC_SAMPLES, seed=seed,
+        )
+        opt.setPricingEngine(engine)
+        records.append({
+            "average": "arithmetic", "spot": spot, "strike": strike, "rate": rate,
+            "vol": vol, "div": div, "t": t, "type": kind, "price": opt.NPV(),
+            "ql_error": opt.errorEstimate(), "n_fixings": n,
+            "paths": 600_000, "seed": seed + 5000,
+        })
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "average-price-asian",
+        "engine": "AnalyticContinuousGeometricAveragePriceAsianEngine / "
+                  "MCDiscreteArithmeticAPEngine",
+        "note": "geometric is closed-form (tol 1e-8); arithmetic is MC, compared "
+                "within a combined standard-error band",
+        "tolerance": 1e-8, "cases": records,
+    }
+
+
+# European option under Heston, for the oxis-pricing path-MC tie-in.
+# spot, strike, rate, div, days, type, v0, kappa, theta, xi, rho.
+HESTON_CASES = [
+    (100.0, 100.0, 0.04, 0.00, 365, "call", 0.04, 1.5, 0.04, 0.30, -0.60),
+    (100.0, 100.0, 0.04, 0.00, 365, "put", 0.04, 1.5, 0.04, 0.30, -0.60),
+    (100.0, 90.0, 0.03, 0.01, 365, "call", 0.05, 2.0, 0.04, 0.50, -0.70),
+    (100.0, 110.0, 0.05, 0.00, 730, "call", 0.06, 1.0, 0.05, 0.40, -0.50),
+]
+
+
+def gen_heston_european():
+    """European prices under Heston via the semi-analytic AnalyticHestonEngine.
+
+    Used by oxis-pricing to validate that a Monte Carlo price over Heston paths
+    from oxis-stochastic matches QuantLib within a standard-error band — the
+    end-to-end check of the (hardest) Heston dynamics."""
+    ql.Settings.instance().evaluationDate = EVAL_DATE
+    records = []
+    for spot, strike, rate, div, days, kind, v0, kappa, theta, xi, rho in HESTON_CASES:
+        t = DAY_COUNT.yearFraction(EVAL_DATE, _exercise_date(days))
+        sh = ql.QuoteHandle(ql.SimpleQuote(spot))
+        rts = ql.YieldTermStructureHandle(
+            ql.FlatForward(EVAL_DATE, rate, DAY_COUNT, ql.Continuous, ql.Annual)
+        )
+        dts = ql.YieldTermStructureHandle(
+            ql.FlatForward(EVAL_DATE, div, DAY_COUNT, ql.Continuous, ql.Annual)
+        )
+        process = ql.HestonProcess(rts, dts, sh, v0, kappa, theta, xi, rho)
+        model = ql.HestonModel(process)
+        engine = ql.AnalyticHestonEngine(model)
+        otype = ql.Option.Call if kind == "call" else ql.Option.Put
+        opt = ql.VanillaOption(
+            ql.PlainVanillaPayoff(otype, strike), ql.EuropeanExercise(_exercise_date(days))
+        )
+        opt.setPricingEngine(engine)
+        records.append({
+            "spot": spot, "strike": strike, "rate": rate, "div": div, "t": t,
+            "type": kind, "v0": v0, "kappa": kappa, "theta": theta, "xi": xi,
+            "rho": rho, "price": opt.NPV(),
+            "paths": 400_000, "steps": 400, "seed": 2024,
+        })
+    return {
+        "oracle": "QuantLib", "oracle_version": ql.__version__,
+        "model": "heston-european", "engine": "AnalyticHestonEngine",
+        "note": "MC over oxis-stochastic Heston paths must match within a "
+                "combined standard-error band",
+        "cases": records,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -467,6 +769,11 @@ def main():
         "monte_carlo_american.json": gen_monte_carlo_american(),
         "yield_curve.json": gen_yield_curve(),
         "bonds.json": gen_bonds(),
+        "processes.json": gen_processes(),
+        "barrier.json": gen_barrier(),
+        "lookback.json": gen_lookback(),
+        "asian.json": gen_asian(),
+        "heston_european.json": gen_heston_european(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)
