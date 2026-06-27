@@ -49,8 +49,8 @@ pub use context::{OutputFormat, RunContext};
 pub use error::OxisError;
 pub use market::MarketData;
 pub use math::{
-    NaturalCubicSpline, brent, linear_interpolate, mean_and_se, newton, normal_cdf, normal_pdf,
-    path_seed, poly_least_squares, sample_mean_var, splitmix64,
+    NaturalCubicSpline, brent, invert, linear_interpolate, mean_and_se, newton, normal_cdf,
+    normal_pdf, path_seed, poly_least_squares, sample_mean_var, solve_linear_system, splitmix64,
 };
 pub use output::{Cell, Column, Tabular};
 pub use series::{DateRange, Ohlcv, TimeSeries};

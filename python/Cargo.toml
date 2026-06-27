@@ -25,4 +25,5 @@ oxis-curves = { workspace = true }
 oxis-bonds = { workspace = true }
 oxis-stochastic = { workspace = true }
 oxis-stats = { workspace = true }
+oxis-portfolio = { workspace = true }
 pyo3 = { workspace = true, features = ["extension-module"] }
