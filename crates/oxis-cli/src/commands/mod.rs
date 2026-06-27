@@ -7,6 +7,7 @@ mod greeks;
 mod implied_vol;
 mod price;
 mod simulate;
+mod stats;
 
 use oxis_core::{OptionType, RunContext};
 
@@ -45,6 +46,8 @@ pub enum Command {
     Exotic(exotic::ExoticArgs),
     /// Simulate a stochastic process and report its terminal moments.
     Simulate(simulate::SimulateArgs),
+    /// Compute descriptive, risk, and performance statistics for a series.
+    Stats(stats::StatsArgs),
 }
 
 impl Command {
@@ -58,6 +61,7 @@ impl Command {
             Command::Bond(args) => bond::run(args, ctx),
             Command::Exotic(args) => exotic::run(args, ctx),
             Command::Simulate(args) => simulate::run(args, ctx),
+            Command::Stats(args) => stats::run(args, ctx),
         }
     }
 }

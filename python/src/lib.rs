@@ -18,6 +18,13 @@ use oxis_pricing::{
     implied_volatility as iv_core, lookback_price as lookback_core, lsm_american as lsm_core,
     monte_carlo_european as mc_european_core,
 };
+use oxis_stats::{
+    SampleKind, StatsRequest, acf as stats_acf, assemble as stats_assemble, beta as stats_beta,
+    cornish_fisher_var, historical_es, historical_var, information_ratio,
+    jarque_bera as stats_jarque_bera, max_drawdown as stats_max_drawdown, parametric_es,
+    parametric_var, sharpe_ratio as stats_sharpe, simple_returns as stats_simple_returns,
+    sortino_ratio as stats_sortino, tracking_error as stats_tracking_error,
+};
 use oxis_stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -706,6 +713,200 @@ fn simulate_process<'py>(
     Ok(d)
 }
 
+// ----------------------------------------------------------------------------
+// Statistics & risk metrics (Ring 3).
+// ----------------------------------------------------------------------------
+
+/// Compute descriptive, risk, and performance statistics for a series.
+///
+/// Provide exactly one of `returns`, `prices`, or `values`. `prices` derives
+/// returns and enables drawdown / Calmar; `values` yields descriptive statistics
+/// only. A `benchmark` (returns) enables beta / correlation / covariance /
+/// tracking error / information ratio. Metrics that don't apply return `None`.
+///
+/// ```python
+/// oxis.stats(returns=[0.01, -0.02, 0.015], periods_per_year=252, confidence=0.95)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (returns=None, prices=None, values=None, benchmark=None,
+                    risk_free=0.0, periods_per_year=252.0, confidence=0.95, lag=None))]
+#[allow(clippy::too_many_arguments)]
+fn stats<'py>(
+    py: Python<'py>,
+    returns: Option<Vec<f64>>,
+    prices: Option<Vec<f64>>,
+    values: Option<Vec<f64>>,
+    benchmark: Option<Vec<f64>>,
+    risk_free: f64,
+    periods_per_year: f64,
+    confidence: f64,
+    lag: Option<usize>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let (sample, kind): (Vec<f64>, SampleKind) = match (&returns, &prices, &values) {
+        (Some(r), None, None) => (r.clone(), SampleKind::Returns),
+        (None, Some(p), None) => (
+            stats_simple_returns(p).map_err(|e| PyValueError::new_err(e.to_string()))?,
+            SampleKind::Returns,
+        ),
+        (None, None, Some(v)) => (v.clone(), SampleKind::Values),
+        (None, None, None) => {
+            return Err(PyValueError::new_err(
+                "provide exactly one of returns, prices, or values",
+            ));
+        }
+        _ => {
+            return Err(PyValueError::new_err(
+                "use only one of returns, prices, or values",
+            ));
+        }
+    };
+
+    let req = StatsRequest {
+        sample: &sample,
+        kind,
+        prices: prices.as_deref(),
+        benchmark: benchmark.as_deref(),
+        risk_free,
+        periods_per_year,
+        confidence,
+        lag,
+    };
+    let r = stats_assemble(&req).map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+    // pyo3 maps `Option<T>` to `None`, so optional metrics serialize cleanly.
+    let d = PyDict::new(py);
+    d.set_item("count", r.count)?;
+    d.set_item("periods_per_year", r.periods_per_year)?;
+    d.set_item("confidence", r.confidence)?;
+    d.set_item("mean", r.mean)?;
+    d.set_item("variance", r.variance)?;
+    d.set_item("std_dev", r.std_dev)?;
+    d.set_item("skewness", r.skewness)?;
+    d.set_item("excess_kurtosis", r.excess_kurtosis)?;
+    d.set_item("jarque_bera", r.jarque_bera)?;
+    d.set_item("jarque_bera_pvalue", r.jarque_bera_pvalue)?;
+    d.set_item("autocorr_lag1", r.autocorr_lag1)?;
+    d.set_item("autocorr_at_lag", r.autocorr_at_lag)?;
+    d.set_item("cumulative_return", r.cumulative_return)?;
+    d.set_item("annualized_return", r.annualized_return)?;
+    d.set_item("annualized_volatility", r.annualized_volatility)?;
+    d.set_item("sharpe", r.sharpe)?;
+    d.set_item("sortino", r.sortino)?;
+    d.set_item("historical_var", r.historical_var)?;
+    d.set_item("historical_es", r.historical_es)?;
+    d.set_item("parametric_var", r.parametric_var)?;
+    d.set_item("parametric_es", r.parametric_es)?;
+    d.set_item("cornish_fisher_var", r.cornish_fisher_var)?;
+    d.set_item("max_drawdown", r.max_drawdown)?;
+    d.set_item("max_drawdown_duration", r.max_drawdown_duration)?;
+    d.set_item("calmar", r.calmar)?;
+    d.set_item("covariance", r.covariance)?;
+    d.set_item("correlation", r.correlation)?;
+    d.set_item("beta", r.beta)?;
+    d.set_item("tracking_error", r.tracking_error)?;
+    d.set_item("information_ratio", r.information_ratio)?;
+    Ok(d)
+}
+
+/// Annualized Sharpe ratio of a returns series.
+#[pyfunction]
+#[pyo3(signature = (returns, risk_free=0.0, periods_per_year=252.0))]
+fn sharpe(returns: Vec<f64>, risk_free: f64, periods_per_year: f64) -> PyResult<f64> {
+    stats_sharpe(&returns, risk_free, periods_per_year)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Annualized Sortino ratio of a returns series.
+#[pyfunction]
+#[pyo3(signature = (returns, mar=0.0, periods_per_year=252.0))]
+fn sortino(returns: Vec<f64>, mar: f64, periods_per_year: f64) -> PyResult<f64> {
+    stats_sortino(&returns, mar, periods_per_year).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Maximum drawdown of a price series, as a dict.
+#[pyfunction]
+fn max_drawdown(py: Python<'_>, prices: Vec<f64>) -> PyResult<Bound<'_, PyDict>> {
+    let dd = stats_max_drawdown(&prices).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("max_drawdown", dd.max_drawdown)?;
+    d.set_item("peak_index", dd.peak_index)?;
+    d.set_item("trough_index", dd.trough_index)?;
+    d.set_item("duration", dd.duration)?;
+    Ok(d)
+}
+
+/// Value-at-Risk (positive loss). `method` ∈ {`historical`, `parametric`,
+/// `cornish-fisher`}.
+#[pyfunction]
+#[pyo3(signature = (returns, confidence=0.95, method="historical"))]
+fn value_at_risk(returns: Vec<f64>, confidence: f64, method: &str) -> PyResult<f64> {
+    let v = match method.to_ascii_lowercase().as_str() {
+        "historical" | "hist" => historical_var(&returns, confidence),
+        "parametric" | "gaussian" => parametric_var(&returns, confidence),
+        "cornish-fisher" | "cf" => cornish_fisher_var(&returns, confidence),
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "method must be 'historical', 'parametric', or 'cornish-fisher', got {other:?}"
+            )));
+        }
+    };
+    v.map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Expected Shortfall (positive loss). `method` ∈ {`historical`, `parametric`}.
+#[pyfunction]
+#[pyo3(signature = (returns, confidence=0.95, method="historical"))]
+fn expected_shortfall(returns: Vec<f64>, confidence: f64, method: &str) -> PyResult<f64> {
+    let v = match method.to_ascii_lowercase().as_str() {
+        "historical" | "hist" => historical_es(&returns, confidence),
+        "parametric" | "gaussian" => parametric_es(&returns, confidence),
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "method must be 'historical' or 'parametric', got {other:?}"
+            )));
+        }
+    };
+    v.map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Beta of an asset's returns against a benchmark's.
+#[pyfunction]
+fn beta(asset: Vec<f64>, benchmark: Vec<f64>) -> PyResult<f64> {
+    stats_beta(&asset, &benchmark).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Annualized tracking error of a portfolio vs a benchmark (returns series).
+#[pyfunction]
+#[pyo3(signature = (portfolio, benchmark, periods_per_year=252.0))]
+fn tracking_error(
+    portfolio: Vec<f64>,
+    benchmark: Vec<f64>,
+    periods_per_year: f64,
+) -> PyResult<f64> {
+    stats_tracking_error(&portfolio, &benchmark, periods_per_year)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Annualized information ratio of a portfolio vs a benchmark (returns series).
+#[pyfunction]
+#[pyo3(signature = (portfolio, benchmark, periods_per_year=252.0))]
+fn info_ratio(portfolio: Vec<f64>, benchmark: Vec<f64>, periods_per_year: f64) -> PyResult<f64> {
+    information_ratio(&portfolio, &benchmark, periods_per_year)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Jarque-Bera normality test: `(statistic, p_value)`.
+#[pyfunction]
+fn jarque_bera(values: Vec<f64>) -> PyResult<(f64, f64)> {
+    stats_jarque_bera(&values).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Autocorrelation function for lags `0..=max_lag`.
+#[pyfunction]
+fn acf(values: Vec<f64>, max_lag: usize) -> PyResult<Vec<f64>> {
+    stats_acf(&values, max_lag).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -721,6 +922,17 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lookback_price, m)?)?;
     m.add_function(wrap_pyfunction!(asian_price, m)?)?;
     m.add_function(wrap_pyfunction!(simulate_process, m)?)?;
+    m.add_function(wrap_pyfunction!(stats, m)?)?;
+    m.add_function(wrap_pyfunction!(sharpe, m)?)?;
+    m.add_function(wrap_pyfunction!(sortino, m)?)?;
+    m.add_function(wrap_pyfunction!(max_drawdown, m)?)?;
+    m.add_function(wrap_pyfunction!(value_at_risk, m)?)?;
+    m.add_function(wrap_pyfunction!(expected_shortfall, m)?)?;
+    m.add_function(wrap_pyfunction!(beta, m)?)?;
+    m.add_function(wrap_pyfunction!(tracking_error, m)?)?;
+    m.add_function(wrap_pyfunction!(info_ratio, m)?)?;
+    m.add_function(wrap_pyfunction!(jarque_bera, m)?)?;
+    m.add_function(wrap_pyfunction!(acf, m)?)?;
     m.add_class::<YieldCurve>()?;
     m.add_class::<FixedRateBond>()?;
     Ok(())

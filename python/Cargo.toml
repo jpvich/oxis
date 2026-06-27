@@ -24,4 +24,5 @@ oxis-greeks = { workspace = true }
 oxis-curves = { workspace = true }
 oxis-bonds = { workspace = true }
 oxis-stochastic = { workspace = true }
+oxis-stats = { workspace = true }
 pyo3 = { workspace = true, features = ["extension-module"] }

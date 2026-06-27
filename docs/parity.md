@@ -26,8 +26,8 @@ Legend: ✅ first-class · ◐ partial / limited (and, for RustQuant, **unvalida
 
 | Capability | QuantLib | RustQuant | OXIS status |
 |---|---|---|---|
-| Statistics & time-series analytics | ◐ | ◐ | 🔜 Ring 3 (`oxis-stats`) |
-| VaR / Expected Shortfall | ◐ | ❌ | 🔜 Ring 3 |
+| Statistics & time-series analytics | ◐ | ◐ | ✅ Ring 3 (`oxis-stats`) — **validated vs numpy/scipy** (≤1e-10; descriptive, returns, risk-adjusted ratios, drawdown, autocorrelation, Jarque-Bera, beta/TE/IR) |
+| VaR / Expected Shortfall | ◐ | ❌ | ✅ Ring 3 (`oxis-stats`) — **validated vs numpy/scipy** (≤1e-10; historical, parametric Gaussian, Cornish-Fisher) |
 | Portfolio: holdings / valuation / performance (TWR, MWR) | ❌ | ◐ | 🔜 Ring 3 (`oxis-portfolio`) |
 | Portfolio optimization / allocation | ❌ | ◐ | 🔜 Ring 3 |
 | **ML / neural option pricing** | ❌ | ❌ | 🔜 **Ring 4 — differentiator** (`oxis-ml`) |
