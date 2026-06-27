@@ -13,6 +13,10 @@ workspace = true
 
 [dependencies]
 oxis-core = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 # When this ring lands, Polars may be added here ONLY behind a feature flag —
 # never in the core. The typed interchange types from `oxis_core::series` stay

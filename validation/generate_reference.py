@@ -23,7 +23,10 @@ import json
 import math
 import os
 
+import numpy as np
 import QuantLib as ql
+import scipy
+from scipy import stats as sps
 
 # Fixed evaluation date for reproducibility (do NOT use "today").
 EVAL_DATE = ql.Date(15, 6, 2026)
@@ -759,6 +762,179 @@ def gen_heston_european():
     }
 
 
+# ----------------------------------------------------------------------------
+# Statistics & risk metrics (Ring 3) — oracle is numpy / scipy, not QuantLib.
+# ----------------------------------------------------------------------------
+
+# Conventions mirror oxis-stats exactly (population/biased moments, positive-loss
+# VaR/ES, geometric annualized return, √ppy scaling, numpy-linear quantile).
+
+# Fixed deterministic series (no RNG — the oracle must be reproducible).
+STATS_RETURNS = [
+    0.012, -0.008, 0.020, -0.015, 0.005, 0.018, -0.010, 0.022,
+    -0.003, 0.011, -0.020, 0.014, 0.007, -0.012, 0.016, -0.006,
+]
+STATS_PRICES = [
+    100.0, 102.0, 101.0, 98.0, 95.0, 97.0, 99.0, 103.0, 96.0, 94.0, 98.0, 105.0,
+]
+STATS_PORT = [0.011, -0.009, 0.018, -0.014, 0.006, 0.017, -0.011, 0.021, -0.004, 0.010, -0.019, 0.013]
+STATS_BENCH = [0.009, -0.007, 0.015, -0.012, 0.004, 0.014, -0.008, 0.018, -0.002, 0.008, -0.016, 0.011]
+
+STATS_RF = 0.0002      # per-period risk-free / MAR
+STATS_PPY = 252.0      # periods per year
+STATS_ACF_LAGS = [1, 2, 3, 4, 5]
+
+
+def _autocorr(x, lag):
+    """numpy-style biased autocorrelation at `lag` (mean-centered, full denom)."""
+    x = np.asarray(x, dtype=float)
+    m = x.mean()
+    denom = np.sum((x - m) ** 2)
+    if lag == 0:
+        return 1.0
+    num = np.sum((x[:-lag] - m) * (x[lag:] - m))
+    return float(num / denom)
+
+
+def _max_drawdown(prices):
+    """Replicate oxis-stats' running-peak drawdown (magnitude, indices, duration)."""
+    peak, peak_idx = prices[0], 0
+    best = (0.0, 0, 0, 0)  # (max_dd, peak_index, trough_index, duration)
+    for i, p in enumerate(prices):
+        if p > peak:
+            peak, peak_idx = p, i
+        dd = (peak - p) / peak
+        if dd > best[0]:
+            best = (dd, peak_idx, i, i - peak_idx)
+    return best
+
+
+def _hist_var(r, c):
+    return float(-np.quantile(r, 1.0 - c, method="linear"))
+
+
+def _hist_es(r, c):
+    r = np.asarray(r, dtype=float)
+    thr = np.quantile(r, 1.0 - c, method="linear")
+    tail = r[r <= thr]
+    if tail.size == 0:
+        tail = np.array([r.min()])
+    return float(-tail.mean())
+
+
+def _param_var(r, c):
+    mu, sigma = np.mean(r), np.std(r, ddof=0)
+    z = sps.norm.ppf(1.0 - c)
+    return float(-(mu + z * sigma))
+
+
+def _param_es(r, c):
+    mu, sigma = np.mean(r), np.std(r, ddof=0)
+    alpha = 1.0 - c
+    z = sps.norm.ppf(alpha)
+    return float(-mu + sigma * sps.norm.pdf(z) / alpha)
+
+
+def _cornish_fisher_var(r, c):
+    mu, sigma = np.mean(r), np.std(r, ddof=0)
+    s = sps.skew(r, bias=True)
+    k = sps.kurtosis(r, fisher=True, bias=True)
+    z = sps.norm.ppf(1.0 - c)
+    z_cf = (z + (z**2 - 1) * s / 6.0 + (z**3 - 3 * z) * k / 24.0
+            - (2 * z**3 - 5 * z) * s**2 / 36.0)
+    return float(-(mu + z_cf * sigma))
+
+
+def _descriptive(sample):
+    """The descriptive + autocorrelation + JB block for any sample."""
+    x = np.asarray(sample, dtype=float)
+    jb_stat, jb_p = sps.jarque_bera(x)
+    return {
+        "mean": float(np.mean(x)),
+        "variance": float(np.var(x, ddof=0)),
+        "std_dev": float(np.std(x, ddof=0)),
+        "skewness": float(sps.skew(x, bias=True)),
+        "excess_kurtosis": float(sps.kurtosis(x, fisher=True, bias=True)),
+        "jarque_bera": float(jb_stat),
+        "jarque_bera_pvalue": float(jb_p),
+        "acf_lags": STATS_ACF_LAGS,
+        "acf": [_autocorr(x, k) for k in STATS_ACF_LAGS],
+    }
+
+
+def _returns_block(r, c, rf, ppy):
+    """The returns / risk / VaR / ES block for a returns series."""
+    r = np.asarray(r, dtype=float)
+    n = r.size
+    growth = float(np.prod(1.0 + r))
+    sd = float(np.std(r, ddof=0))
+    downside = float(np.mean(np.minimum(r - rf, 0.0) ** 2))
+    dd = math.sqrt(downside)
+    return {
+        "cumulative_return": growth - 1.0,
+        "annualized_return": growth ** (ppy / n) - 1.0,
+        "annualized_volatility": sd * math.sqrt(ppy),
+        "sharpe": (float(np.mean(r)) - rf) / sd * math.sqrt(ppy),
+        "sortino": (float(np.mean(r)) - rf) / dd * math.sqrt(ppy),
+        "historical_var": _hist_var(r, c),
+        "historical_es": _hist_es(r, c),
+        "parametric_var": _param_var(r, c),
+        "parametric_es": _param_es(r, c),
+        "cornish_fisher_var": _cornish_fisher_var(r, c),
+    }
+
+
+def gen_stats():
+    """Descriptive, risk, performance, and relational statistics (numpy/scipy)."""
+    cases = []
+
+    # Case A — returns at 95% confidence: descriptive + returns/risk + acf + JB.
+    a = {"name": "returns_c95", "returns": STATS_RETURNS, "risk_free": STATS_RF,
+         "periods_per_year": STATS_PPY, "confidence": 0.95}
+    a.update(_descriptive(STATS_RETURNS))
+    a.update(_returns_block(STATS_RETURNS, 0.95, STATS_RF, STATS_PPY))
+    cases.append(a)
+
+    # Case A2 — same returns at 99% confidence: tail (VaR/ES) coverage.
+    a2 = {"name": "returns_c99", "returns": STATS_RETURNS, "risk_free": STATS_RF,
+          "periods_per_year": STATS_PPY, "confidence": 0.99}
+    a2.update(_returns_block(STATS_RETURNS, 0.99, STATS_RF, STATS_PPY))
+    cases.append(a2)
+
+    # Case B — price path: drawdown + Calmar.
+    mdd, _peak, _trough, dur = _max_drawdown(STATS_PRICES)
+    prices = np.asarray(STATS_PRICES, dtype=float)
+    simple = prices[1:] / prices[:-1] - 1.0
+    growth = float(np.prod(1.0 + simple))
+    ann = growth ** (STATS_PPY / simple.size) - 1.0
+    b = {"name": "prices", "prices": STATS_PRICES, "risk_free": STATS_RF,
+         "periods_per_year": STATS_PPY, "confidence": 0.95,
+         "max_drawdown": mdd, "max_drawdown_duration": dur, "calmar": ann / mdd}
+    cases.append(b)
+
+    # Case C — portfolio vs benchmark: relational + active-return metrics.
+    port = np.asarray(STATS_PORT, dtype=float)
+    bench = np.asarray(STATS_BENCH, dtype=float)
+    active = port - bench
+    c = {"name": "port_vs_bench", "returns": STATS_PORT, "benchmark": STATS_BENCH,
+         "risk_free": STATS_RF, "periods_per_year": STATS_PPY, "confidence": 0.95,
+         "covariance": float(np.cov(port, bench, bias=True)[0, 1]),
+         "correlation": float(np.corrcoef(port, bench)[0, 1]),
+         "beta": float(np.cov(port, bench, bias=True)[0, 1] / np.var(bench, ddof=0)),
+         "tracking_error": float(np.std(active, ddof=0) * math.sqrt(STATS_PPY)),
+         "information_ratio": float(np.mean(active) / np.std(active, ddof=0) * math.sqrt(STATS_PPY))}
+    cases.append(c)
+
+    return {
+        "oracle": "numpy/scipy/pandas",
+        "oracle_version": f"numpy {np.__version__}, scipy {scipy.__version__}",
+        "model": "statistics",
+        "tolerance": 1e-10,
+        "pvalue_tolerance": 1e-7,
+        "cases": cases,
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -774,13 +950,14 @@ def main():
         "lookback.json": gen_lookback(),
         "asian.json": gen_asian(),
         "heston_european.json": gen_heston_european(),
+        "stats.json": gen_stats(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)
         with open(path, "w") as f:
             json.dump(out, f, indent=2)
             f.write("\n")
-        print(f"wrote {len(out['cases'])} cases to {name} (QuantLib {ql.__version__})")
+        print(f"wrote {len(out['cases'])} cases to {name} (oracle: {out['oracle']})")
 
 
 if __name__ == "__main__":

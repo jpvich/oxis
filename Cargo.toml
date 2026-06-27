@@ -49,6 +49,7 @@ oxis-greeks = { path = "crates/oxis-greeks" }
 oxis-curves = { path = "crates/oxis-curves" }
 oxis-bonds = { path = "crates/oxis-bonds" }
 oxis-stochastic = { path = "crates/oxis-stochastic" }
+oxis-stats = { path = "crates/oxis-stats" }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

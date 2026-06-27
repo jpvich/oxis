@@ -255,6 +255,7 @@ dependencies = [
  "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
+ "oxis-stats",
  "oxis-stochastic",
 ]
 
@@ -329,6 +330,7 @@ dependencies = [
  "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
+ "oxis-stats",
  "oxis-stochastic",
  "pyo3",
 ]
@@ -338,6 +340,8 @@ name = "oxis-stats"
 version = "0.0.0"
 dependencies = [
  "oxis-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

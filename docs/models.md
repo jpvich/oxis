@@ -47,6 +47,27 @@ to validate, so the oracle is the **closed-form terminal moment** of each proces
 | Merton jump-diffusion | `oxis-stochastic` | exact diffusion + compound-Poisson jumps | closed-form mean/variance | ≤ ~5 SE / rel. band | **validated** |
 | Heston stochastic vol | `oxis-stochastic` | full-truncation Euler (correlated) | mean `S₀e^{μt}`; European price vs QuantLib `AnalyticHestonEngine` | mean rel. band; price ≤ 5 SE + 0.15 | **validated** |
 
+## Ring 3 — statistics & risk
+
+`oxis-stats` is a pure-compute module of descriptive, risk, performance, and
+relational statistics over return / price series, consumed by the later portfolio
+and ML rings. QuantLib has thin coverage here, so the oracle is **numpy / scipy /
+pandas** (industry-standard, closed-form where applicable) — all moments are
+population / biased (÷n) to match the oracle exactly, VaR/ES are positive loss
+magnitudes, and annualization scales per-period inputs by `√ppy` (geometric for
+returns).
+
+| Family | Crate | Method | Reference | Tolerance | Status |
+|---|---|---|---|---|---|
+| Descriptive moments | `oxis-stats` | mean, population variance/std, biased skew, Fisher excess kurtosis | `numpy.var(ddof=0)` / `scipy.stats.skew,kurtosis(bias=True)` | ≤ 1e-10 (max ~1.8e-15) | **validated** |
+| Returns & volatility | `oxis-stats` | simple/log/cumulative returns, geometric annualized return, annualized vol | numpy closed form | ≤ 1e-10 | **validated** |
+| Risk-adjusted ratios | `oxis-stats` | Sharpe, Sortino (downside dev vs MAR, full-`n`), Calmar | numpy closed form | ≤ 1e-10 | **validated** |
+| Drawdown | `oxis-stats` | running-peak max drawdown + duration | numpy reference | exact (duration) / ≤ 1e-10 | **validated** |
+| VaR / Expected Shortfall | `oxis-stats` | historical (numpy-linear quantile), parametric Gaussian, Cornish-Fisher | `numpy.quantile` / `scipy.stats.norm` | ≤ 1e-10 | **validated** |
+| Relational & active-return | `oxis-stats` | covariance, correlation, beta, tracking error, information ratio | `numpy.cov(bias=True)` / `corrcoef` | ≤ 1e-10 | **validated** |
+| Autocorrelation | `oxis-stats` | biased ACF (mean-centered, full denom), lags 1–5 | numpy reference | ≤ 1e-10 | **validated** |
+| Jarque-Bera | `oxis-stats` | `n/6·(S² + K²/4)`, χ²₂ p-value `exp(−JB/2)` | `scipy.stats.jarque_bera` | stat ≤ 1e-10; p-value ≤ 1e-7 | **validated** |
+
 ## Core numerics
 
 | Primitive | Crate | Method | Reference | Status |
