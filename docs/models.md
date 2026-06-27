@@ -27,6 +27,25 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 |---|---|---|---|---|---|
 | Yield curve / term structure | `oxis-curves` | interpolated discount/zero/forward — linear (zero rates), log-linear (discount factors), natural cubic (zero rates) | QuantLib `ZeroCurve` / `DiscountCurve` / `NaturalCubicZeroCurve` (1.42.1, 51 queries) | ≤ 1e-10 (max ~4.3e-16) | **validated** |
 | Fixed-rate bond | `oxis-bonds` | cashflow PV (flat yield compounded@freq, or curve discounting); YTM (Brent); Macaulay/modified duration; convexity | QuantLib `FixedRateBond` / `BondFunctions` (1.42.1, 11 bonds) | ≤ 1e-8 (max ~9.5e-9) | **validated** |
+| Barrier option (8 single-barrier types) | `oxis-pricing` | Reiner-Rubinstein closed form, continuous monitoring, zero rebate (`out = vanilla − in`) | QuantLib `AnalyticBarrierEngine` (1.42.1, 12 cases) | ≤ 1e-8 (max ~2.5e-14) | **validated** |
+| Lookback option (fixed & floating strike) | `oxis-pricing` | continuous closed form — Goldman-Sosin-Gatto (floating) / Conze-Viswanathan (fixed), fresh issue (extremum = spot) | QuantLib `AnalyticContinuous{Floating,Fixed}LookbackEngine` (1.42.1, 8 cases) | ≤ 1e-8 (max ~2.1e-14) | **validated** |
+| Asian option — geometric average | `oxis-pricing` | Kemna-Vorst closed form (vol `σ/√3`, carry `½(b−σ²/6)`), continuous averaging | QuantLib `AnalyticContinuousGeometricAveragePriceAsianEngine` (1.42.1) | ≤ 1e-8 | **validated** |
+| Asian option — arithmetic average | `oxis-pricing` | Monte Carlo over GBM paths (`oxis-stochastic`), discrete fixings, + SE | QuantLib `MCDiscreteArithmeticAPEngine` (1.42.1) | ≤ 4 combined SE | **validated** |
+
+## Ring 2 — stochastic processes
+
+`oxis-stochastic` is a pure path-generation primitive (no pricing inside it) that
+`oxis-pricing` consumes for path-dependent exotics, and the later ML / portfolio
+rings will consume for training / scenario simulation. A simulator has no "price"
+to validate, so the oracle is the **closed-form terminal moment** of each process.
+
+| Process | Crate | Scheme | Reference | Tolerance | Status |
+|---|---|---|---|---|---|
+| Geometric Brownian motion | `oxis-stochastic` | exact log-Euler | closed-form lognormal mean/variance | ≤ ~4 SE (mean) / rel. band (std) | **validated** |
+| Ornstein-Uhlenbeck / Vasicek | `oxis-stochastic` | exact Gaussian transition | closed-form OU mean/variance | ≤ ~4 SE / rel. band | **validated** |
+| Cox-Ingersoll-Ross | `oxis-stochastic` | full-truncation Euler | closed-form CIR mean/variance | ≤ ~5 SE / rel. band | **validated** |
+| Merton jump-diffusion | `oxis-stochastic` | exact diffusion + compound-Poisson jumps | closed-form mean/variance | ≤ ~5 SE / rel. band | **validated** |
+| Heston stochastic vol | `oxis-stochastic` | full-truncation Euler (correlated) | mean `S₀e^{μt}`; European price vs QuantLib `AnalyticHestonEngine` | mean rel. band; price ≤ 5 SE + 0.15 | **validated** |
 
 ## Core numerics
 
@@ -95,6 +114,28 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
   date (`accrued = 0`) with a `Thirty360(BondBasis)`, `NullCalendar`, `Unadjusted`
   schedule, so the ergonomic `regular` builder reproduces QuantLib's cashflows
   exactly. Bootstrapping a curve from bond/swap quotes is a separate, later module.
+- **Exotic options** are **continuously monitored** (the closed-form domain). Barrier
+  options use the Reiner-Rubinstein formulas with **zero rebate**, and each knock-out
+  is recovered from the exact European parity `in + out = vanilla` (reusing the
+  validated Black-Scholes vanilla), so the eight types share four coded knock-in
+  formulas. Lookbacks are priced **freshly issued** — the realized running extremum
+  equals the spot at inception, matching QuantLib's `minmax` argument. Asians are
+  **average-price** (fixed strike): the geometric average is closed-form (Kemna-Vorst),
+  the arithmetic average is Monte Carlo over `oxis-stochastic` GBM paths with discrete
+  fixings aligned to QuantLib's (`days = n·step`, so fixing year-fractions are exactly
+  `i·T/n`). Average-strike (floating) Asians and discrete-monitoring barriers/lookbacks
+  are deferred.
+- **Stochastic processes** live in `oxis-stochastic` with **no pricing inside** them, so
+  downstream rings consume raw paths without depending on `oxis-pricing`. Paths are
+  **bit-reproducible** for a fixed `(seed, paths, steps)` via the same per-index
+  `splitmix64` seeding + antithetic pairing + ordered reduction as the Monte Carlo
+  pricers (the seeding/sample helpers now live in `oxis-core::math`). GBM, OU/Vasicek,
+  and Merton jump-diffusion are **exact in distribution** (no time-discretization bias),
+  so their moments match the closed form up to sampling error; CIR and the Heston
+  variance use a **full-truncation Euler** scheme (the Feller condition `2κθ ≥ σ²` is
+  *not* required), which carries a small `O(dt)` bias absorbed by the validation bands.
+  Heston's mean is `S₀e^{μt}` exactly; its full dynamics are validated end-to-end by
+  pricing a European option over simulated paths against QuantLib's `AnalyticHestonEngine`.
 
 ## Edge-case contract (applies to every pricing model)
 

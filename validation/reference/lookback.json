@@ -1,0 +1,99 @@
+{
+  "oracle": "QuantLib",
+  "oracle_version": "1.42.1",
+  "model": "continuous-lookback",
+  "engine": "AnalyticContinuousFloating/FixedLookbackEngine",
+  "monitoring": "continuous",
+  "issue": "fresh (extremum = spot)",
+  "tolerance": 1e-08,
+  "cases": [
+    {
+      "spot": 100.0,
+      "strike": 0.0,
+      "rate": 0.06,
+      "vol": 0.3,
+      "div": 0.02,
+      "t": 1.0,
+      "type": "call",
+      "strike_type": "floating",
+      "price": 22.914293157855095
+    },
+    {
+      "spot": 100.0,
+      "strike": 0.0,
+      "rate": 0.06,
+      "vol": 0.3,
+      "div": 0.02,
+      "t": 1.0,
+      "type": "put",
+      "strike_type": "floating",
+      "price": 23.394719904386406
+    },
+    {
+      "spot": 100.0,
+      "strike": 0.0,
+      "rate": 0.04,
+      "vol": 0.2,
+      "div": 0.0,
+      "t": 0.4931506849315068,
+      "type": "call",
+      "strike_type": "floating",
+      "price": 11.63040675087926
+    },
+    {
+      "spot": 100.0,
+      "strike": 95.0,
+      "rate": 0.06,
+      "vol": 0.3,
+      "div": 0.02,
+      "t": 1.0,
+      "type": "call",
+      "strike_type": "fixed",
+      "price": 31.94695654455833
+    },
+    {
+      "spot": 100.0,
+      "strike": 105.0,
+      "rate": 0.06,
+      "vol": 0.3,
+      "div": 0.02,
+      "t": 1.0,
+      "type": "put",
+      "strike_type": "fixed",
+      "price": 23.77970185352566
+    },
+    {
+      "spot": 100.0,
+      "strike": 110.0,
+      "rate": 0.04,
+      "vol": 0.25,
+      "div": 0.01,
+      "t": 1.0,
+      "type": "call",
+      "strike_type": "fixed",
+      "price": 14.406095552399588
+    },
+    {
+      "spot": 100.0,
+      "strike": 90.0,
+      "rate": 0.04,
+      "vol": 0.25,
+      "div": 0.01,
+      "t": 1.0,
+      "type": "put",
+      "strike_type": "fixed",
+      "price": 8.514606572455882
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "vol": 0.4,
+      "div": 0.0,
+      "t": 2.0,
+      "type": "call",
+      "strike_type": "fixed",
+      "price": 56.125561035955016
+    }
+  ]
+}

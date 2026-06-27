@@ -14,13 +14,13 @@
 //! the ordered/sequential reduction match [`crate::monte_carlo`], so the price
 //! and standard error are bit-reproducible for a given `(seed, paths, steps)`.
 
-use oxis_core::{MarketData, OptionType, OxisError, poly_least_squares};
+use oxis_core::{MarketData, OptionType, OxisError, mean_and_se, path_seed, poly_least_squares};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand_distr::{Distribution, StandardNormal};
 use rayon::prelude::*;
 
-use crate::monte_carlo::{McConfig, McEstimate, mean_and_se, path_seed, validate_inputs};
+use crate::monte_carlo::{McConfig, McEstimate, validate_inputs};
 
 /// Polynomial basis degree for the continuation-value regression. Degree 2
 /// (`{1, x, x²}`) matches QuantLib's default `MCAmericanEngine` polynomial order.

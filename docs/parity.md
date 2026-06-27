@@ -17,10 +17,10 @@ Legend: ✅ first-class · ◐ partial / limited (and, for RustQuant, **unvalida
 | Longstaff-Schwartz (American MC) | ✅ | ❌ | ✅ Ring 1 — **validated vs QuantLib LSM + binomial** (combined-SE / ≤2.5% bias band) |
 | Analytic Greeks | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.0e-13) |
 | Implied volatility solver | ✅ | ◐ | ✅ Ring 1 — **validated vs QuantLib** (≤1.2e-11) |
-| Exotic options (barrier, Asian, lookback) | ✅ | ◐ | 🔜 Ring 2 |
+| Exotic options (barrier, Asian, lookback) | ✅ | ◐ | ✅ Ring 2 — **validated vs QuantLib** (barrier/lookback/geometric-Asian closed-form ≤1e-13; arithmetic-Asian MC within combined SE) |
 | Yield curves / term structures | ✅ | ◐ | ✅ Ring 2 — **validated vs QuantLib** (≤1e-10; linear / log-linear / natural-cubic; discount/zero/forward) |
 | Bonds & fixed income | ✅ | ❌ | ✅ Ring 2 — **validated vs QuantLib** (≤1e-8; fixed-rate price/YTM/duration/convexity; curve or yield discounting). Bootstrapping planned. |
-| Stochastic process generators | ✅ | ✅ | 🔜 Ring 2 |
+| Stochastic process generators | ✅ | ✅ | ✅ Ring 2 — **validated vs closed-form moments** (GBM, OU, Vasicek, CIR, Merton-jump, Heston; reproducible antithetic paths) |
 
 ## Platform breadth (Ring 3+ — where OXIS aims past the references)
 

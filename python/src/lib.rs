@@ -12,10 +12,13 @@ use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
 use oxis_pricing::{
-    DEFAULT_STEPS, McConfig, binomial as binomial_core, black_scholes as bs_core,
-    implied_volatility as iv_core, lsm_american as lsm_core,
+    BarrierType, DEFAULT_STEPS, LookbackStrike, McConfig,
+    arithmetic_asian_price as arith_asian_core, barrier_price as barrier_core,
+    binomial as binomial_core, black_scholes as bs_core, geometric_asian_price as geo_asian_core,
+    implied_volatility as iv_core, lookback_price as lookback_core, lsm_american as lsm_core,
     monte_carlo_european as mc_european_core,
 };
+use oxis_stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -463,6 +466,246 @@ impl FixedRateBond {
     }
 }
 
+// ----------------------------------------------------------------------------
+// Exotic options (Ring 2).
+// ----------------------------------------------------------------------------
+
+fn parse_barrier_type(s: &str) -> PyResult<BarrierType> {
+    match s.to_ascii_lowercase().replace('_', "-").as_str() {
+        "down-in" | "downin" | "di" => Ok(BarrierType::DownIn),
+        "down-out" | "downout" | "do" => Ok(BarrierType::DownOut),
+        "up-in" | "upin" | "ui" => Ok(BarrierType::UpIn),
+        "up-out" | "upout" | "uo" => Ok(BarrierType::UpOut),
+        other => Err(PyValueError::new_err(format!(
+            "barrier_type must be one of down-in/down-out/up-in/up-out, got {other:?}"
+        ))),
+    }
+}
+
+/// Price a continuously monitored single-barrier option (zero rebate).
+///
+/// ```python
+/// oxis.barrier_price(spot=100, strike=100, rate=0.05, vol=0.25, t=1.0,
+///                    option_type="call", barrier_type="down-out", barrier=90)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, t, option_type, barrier_type, barrier,
+                    dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn barrier_price(
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    t: f64,
+    option_type: &str,
+    barrier_type: &str,
+    barrier: f64,
+    dividend_yield: f64,
+) -> PyResult<f64> {
+    let option = EuropeanOption {
+        strike,
+        expiry_years: t,
+        option_type: parse_option_type(option_type)?,
+    };
+    let market = MarketData::new(spot, rate, vol, dividend_yield);
+    barrier_core(&option, &market, parse_barrier_type(barrier_type)?, barrier)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Price a continuous lookback option (freshly issued: extremum = spot).
+///
+/// ```python
+/// oxis.lookback_price(spot=100, strike=0, rate=0.06, vol=0.3, t=1.0,
+///                     option_type="call", strike_type="floating", dividend_yield=0.02)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, t, option_type, strike_type, dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn lookback_price(
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    t: f64,
+    option_type: &str,
+    strike_type: &str,
+    dividend_yield: f64,
+) -> PyResult<f64> {
+    let st = match strike_type.to_ascii_lowercase().as_str() {
+        "floating" | "float" => LookbackStrike::Floating,
+        "fixed" => LookbackStrike::Fixed,
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "strike_type must be 'floating' or 'fixed', got {other:?}"
+            )));
+        }
+    };
+    let option = EuropeanOption {
+        strike,
+        expiry_years: t,
+        option_type: parse_option_type(option_type)?,
+    };
+    let market = MarketData::new(spot, rate, vol, dividend_yield);
+    lookback_core(&option, &market, st).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// Price an average-price Asian option, returning a dict with the price (and, for
+/// the arithmetic average, its Monte Carlo standard error; `None` for geometric).
+///
+/// ```python
+/// oxis.asian_price(spot=100, strike=100, rate=0.05, vol=0.2, t=1.0,
+///                  option_type="call", average="arithmetic", n_fixings=50)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, t, option_type, average="geometric",
+                    n_fixings=50, paths=100_000, seed=42, dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn asian_price<'py>(
+    py: Python<'py>,
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    t: f64,
+    option_type: &str,
+    average: &str,
+    n_fixings: usize,
+    paths: usize,
+    seed: u64,
+    dividend_yield: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let option = EuropeanOption {
+        strike,
+        expiry_years: t,
+        option_type: parse_option_type(option_type)?,
+    };
+    let market = MarketData::new(spot, rate, vol, dividend_yield);
+    let d = PyDict::new(py);
+    match average.to_ascii_lowercase().as_str() {
+        "geometric" | "geo" => {
+            let price = geo_asian_core(&option, &market)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            d.set_item("price", price)?;
+            d.set_item("standard_error", py.None())?;
+        }
+        "arithmetic" | "arith" => {
+            let cfg = SimConfig {
+                paths,
+                steps: 0,
+                seed,
+            };
+            let est = arith_asian_core(&option, &market, n_fixings, &cfg)
+                .map_err(|e| PyValueError::new_err(e.to_string()))?;
+            d.set_item("price", est.price)?;
+            d.set_item("standard_error", est.standard_error)?;
+        }
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "average must be 'geometric' or 'arithmetic', got {other:?}"
+            )));
+        }
+    }
+    Ok(d)
+}
+
+// ----------------------------------------------------------------------------
+// Stochastic process simulation (Ring 2).
+// ----------------------------------------------------------------------------
+
+/// Simulate a stochastic process and return a dict of its terminal moments
+/// (sample vs closed-form mean/std). Parameters not used by the chosen process
+/// are ignored; each has a default.
+///
+/// `process` is one of `gbm`, `ou`, `vasicek`, `cir`, `merton`, `heston`.
+///
+/// ```python
+/// oxis.simulate_process("heston", x0=100, t=1.0, steps=200, paths=100_000,
+///                       mu=0.04, v0=0.04, kappa=1.5, theta=0.04, xi=0.3, rho=-0.6)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (process, x0=100.0, t=1.0, steps=100, paths=100_000, seed=42,
+                    mu=0.05, sigma=0.20, kappa=1.0, theta=0.04, lambda_=0.5,
+                    jump_mean=-0.10, jump_std=0.15, v0=0.04, xi=0.30, rho=-0.60))]
+#[allow(clippy::too_many_arguments)]
+fn simulate_process<'py>(
+    py: Python<'py>,
+    process: &str,
+    x0: f64,
+    t: f64,
+    steps: usize,
+    paths: usize,
+    seed: u64,
+    mu: f64,
+    sigma: f64,
+    kappa: f64,
+    theta: f64,
+    lambda_: f64,
+    jump_mean: f64,
+    jump_std: f64,
+    v0: f64,
+    xi: f64,
+    rho: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let proc = match process.to_ascii_lowercase().as_str() {
+        "gbm" => Process::Gbm { mu, sigma },
+        "ou" | "ornstein-uhlenbeck" => Process::OrnsteinUhlenbeck {
+            kappa,
+            theta,
+            sigma,
+        },
+        "vasicek" => Process::Vasicek {
+            kappa,
+            theta,
+            sigma,
+        },
+        "cir" => Process::Cir {
+            kappa,
+            theta,
+            sigma,
+        },
+        "merton" | "merton-jump" => Process::MertonJump {
+            mu,
+            sigma,
+            lambda: lambda_,
+            jump_mean,
+            jump_std,
+        },
+        "heston" => Process::Heston {
+            mu,
+            v0,
+            kappa,
+            theta,
+            xi,
+            rho,
+        },
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "process must be one of gbm/ou/vasicek/cir/merton/heston, got {other:?}"
+            )));
+        }
+    };
+    let cfg = SimConfig { paths, steps, seed };
+    let sample =
+        simulate_terminal(&proc, x0, t, &cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let r = ProcessResult::from_simulation(&proc, x0, t, &cfg, &sample);
+
+    let d = PyDict::new(py);
+    d.set_item("process", r.process)?;
+    d.set_item("x0", r.x0)?;
+    d.set_item("t", r.t)?;
+    d.set_item("paths", r.paths)?;
+    d.set_item("steps", r.steps)?;
+    d.set_item("sample_mean", r.sample_mean)?;
+    d.set_item("mean_std_error", r.mean_std_error)?;
+    d.set_item("sample_std", r.sample_std)?;
+    d.set_item("analytic_mean", r.analytic_mean)?;
+    d.set_item("analytic_std", r.analytic_std)?;
+    d.set_item("mean_abs_error", r.mean_abs_error)?;
+    d.set_item("std_abs_error", r.std_abs_error)?;
+    Ok(d)
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -474,6 +717,10 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lsm, m)?)?;
     m.add_function(wrap_pyfunction!(greeks, m)?)?;
     m.add_function(wrap_pyfunction!(implied_volatility, m)?)?;
+    m.add_function(wrap_pyfunction!(barrier_price, m)?)?;
+    m.add_function(wrap_pyfunction!(lookback_price, m)?)?;
+    m.add_function(wrap_pyfunction!(asian_price, m)?)?;
+    m.add_function(wrap_pyfunction!(simulate_process, m)?)?;
     m.add_class::<YieldCurve>()?;
     m.add_class::<FixedRateBond>()?;
     Ok(())

@@ -15,7 +15,7 @@
 //! error **bit-reproducible** for a given `(seed, paths)` regardless of the
 //! thread count.
 
-use oxis_core::{EuropeanOption, MarketData, OxisError};
+use oxis_core::{EuropeanOption, MarketData, OxisError, mean_and_se, path_seed};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand_distr::{Distribution, StandardNormal};
@@ -142,35 +142,6 @@ pub(crate) fn validate_inputs(
         return Err(OxisError::invalid_input("paths must be >= 1"));
     }
     Ok(())
-}
-
-/// Derive an independent per-path RNG seed from `(seed, index)`.
-///
-/// Two `splitmix64` passes decorrelate even sequential indices, so the path
-/// streams are independent and reproducible across thread counts.
-pub(crate) fn path_seed(seed: u64, index: usize) -> u64 {
-    splitmix64(seed ^ splitmix64(index as u64))
-}
-
-fn splitmix64(z: u64) -> u64 {
-    let mut x = z.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    x ^ (x >> 31)
-}
-
-/// Sample mean and standard error of the mean over `samples`.
-///
-/// The standard error is `s / √n` with `s` the sample standard deviation
-/// (Bessel-corrected). Returns `0.0` for fewer than two samples.
-pub(crate) fn mean_and_se(samples: &[f64]) -> (f64, f64) {
-    let n = samples.len();
-    let mean = samples.iter().sum::<f64>() / n as f64;
-    if n < 2 {
-        return (mean, 0.0);
-    }
-    let var = samples.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (n as f64 - 1.0);
-    (mean, (var / n as f64).sqrt())
 }
 
 #[cfg(test)]

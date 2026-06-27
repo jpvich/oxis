@@ -255,6 +255,7 @@ dependencies = [
  "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
+ "oxis-stochastic",
 ]
 
 [[package]]
@@ -311,6 +312,7 @@ name = "oxis-pricing"
 version = "0.0.0"
 dependencies = [
  "oxis-core",
+ "oxis-stochastic",
  "rand",
  "rand_distr",
  "rayon",
@@ -327,6 +329,7 @@ dependencies = [
  "oxis-curves",
  "oxis-greeks",
  "oxis-pricing",
+ "oxis-stochastic",
  "pyo3",
 ]
 
@@ -335,6 +338,18 @@ name = "oxis-stats"
 version = "0.0.0"
 dependencies = [
  "oxis-core",
+]
+
+[[package]]
+name = "oxis-stochastic"
+version = "0.0.0"
+dependencies = [
+ "oxis-core",
+ "rand",
+ "rand_distr",
+ "rayon",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

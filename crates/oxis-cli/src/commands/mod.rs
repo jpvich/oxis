@@ -2,9 +2,11 @@
 
 mod bond;
 mod curve;
+mod exotic;
 mod greeks;
 mod implied_vol;
 mod price;
+mod simulate;
 
 use oxis_core::{OptionType, RunContext};
 
@@ -39,6 +41,10 @@ pub enum Command {
     Curve(curve::CurveArgs),
     /// Price a fixed-rate bond and report yield / duration / convexity.
     Bond(bond::BondArgs),
+    /// Price an exotic option (barrier, lookback, or Asian).
+    Exotic(exotic::ExoticArgs),
+    /// Simulate a stochastic process and report its terminal moments.
+    Simulate(simulate::SimulateArgs),
 }
 
 impl Command {
@@ -50,6 +56,8 @@ impl Command {
             Command::ImpliedVol(args) => implied_vol::run(args, ctx),
             Command::Curve(args) => curve::run(args, ctx),
             Command::Bond(args) => bond::run(args, ctx),
+            Command::Exotic(args) => exotic::run(args, ctx),
+            Command::Simulate(args) => simulate::run(args, ctx),
         }
     }
 }

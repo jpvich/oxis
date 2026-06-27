@@ -104,3 +104,77 @@ impl Tabular for PriceResult {
         ]
     }
 }
+
+/// The outcome of pricing an exotic option (barrier / lookback / Asian).
+///
+/// One self-describing record across the three families: dimensions that a given
+/// exotic doesn't use (barrier level, average/strike type) and the Monte Carlo
+/// standard error (closed-form prices have none) render as JSON `null` — the same
+/// `Option` → `Cell::Null` convention `PriceResult.standard_error` uses.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ExoticResult {
+    /// Exotic family + variant (e.g. `"barrier"`, `"asian"`, `"lookback"`).
+    pub model: &'static str,
+    /// Call or put.
+    pub option_type: OptionType,
+    /// Spot price input.
+    pub spot: f64,
+    /// Strike price input (ignored by floating-strike lookbacks).
+    pub strike: f64,
+    /// Continuously compounded risk-free rate input.
+    pub rate: f64,
+    /// Volatility input.
+    pub volatility: f64,
+    /// Time to expiry (years) input.
+    pub time: f64,
+    /// Continuously compounded dividend yield input.
+    pub dividend_yield: f64,
+    /// Barrier level (barrier options only).
+    pub barrier: Option<f64>,
+    /// Barrier / averaging / strike variant label (e.g. `"down-out"`,
+    /// `"arithmetic"`, `"floating"`).
+    pub variant: Option<&'static str>,
+    /// The computed present value.
+    pub price: f64,
+    /// Monte Carlo standard error, if applicable (arithmetic-average Asian).
+    pub standard_error: Option<f64>,
+}
+
+impl Tabular for ExoticResult {
+    fn columns(&self) -> Vec<Column> {
+        vec![
+            Column::new("model"),
+            Column::new("option_type"),
+            Column::new("spot"),
+            Column::new("strike"),
+            Column::new("rate"),
+            Column::new("volatility"),
+            Column::new("time"),
+            Column::new("dividend_yield"),
+            Column::new("barrier"),
+            Column::new("variant"),
+            Column::new("price"),
+            Column::new("standard_error"),
+        ]
+    }
+
+    fn cells(&self) -> Vec<Cell> {
+        vec![
+            Cell::str(self.model),
+            Cell::str(self.option_type.as_str()),
+            Cell::F64(self.spot),
+            Cell::F64(self.strike),
+            Cell::F64(self.rate),
+            Cell::F64(self.volatility),
+            Cell::F64(self.time),
+            Cell::F64(self.dividend_yield),
+            self.barrier.into(),
+            match self.variant {
+                Some(v) => Cell::str(v),
+                None => Cell::Null,
+            },
+            Cell::F64(self.price),
+            self.standard_error.into(),
+        ]
+    }
+}
