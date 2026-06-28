@@ -90,6 +90,38 @@ Oracle = numpy/scipy: matrix algebra via `np.linalg.solve`, IRR via
 | Risk aggregation | `oxis-portfolio` | population covariance matrix, `wᵀΣw` vol, portfolio VaR (reuses `oxis-stats`) | `np.cov(bias=True)`, `np.quantile`, `scipy.stats.norm` | ≤ 1e-10 | **validated** |
 | Markowitz optimization | `oxis-portfolio` | unconstrained closed form — min-variance / tangency / efficient-frontier via `Σ⁻¹` (solved, shorting allowed) | `numpy.linalg.solve` | ≤ 1e-10 (max ~8.7e-16) | **validated** |
 
+## Ring 4 — machine-learning pricing
+
+`oxis-ml` is the OXIS differentiator: validated ML pricing, **hand-rolled with no
+ML framework** (`candle`/`burn`/`tch`), so the binary stays portable and every
+number is auditable. The first model is **Differential Machine Learning** (Huge &
+Savine, 2020): a *twin network* — a softplus MLP whose forward pass predicts an
+option's price and whose backprop pass predicts its delta — trained on simulated
+payoffs *and* their pathwise differentials. The network, its twin (input-gradient)
+pass, and the doubled-network training gradient are plain linear algebra over
+`oxis-core`; training is Adam with a one-cycle schedule and is bit-reproducible for
+a fixed seed. Inference is **Kind A** (pure compute); it sits on top of the
+classical engines (`oxis-pricing`, `oxis-greeks`) so its accuracy is measured
+against a trusted baseline.
+
+**Validation contract — two layers.** An ML model is an *approximation* and will
+not match Black-Scholes to `1e-10`; the non-negotiable ("no model is done without a
+test vs a trusted baseline") is preserved by splitting the test:
+
+1. **Inference exactness** — the forward value and input-gradient of a *fixed-weight*
+   net match an independent numpy reference to **≤ 1e-12** (proves the math is right).
+2. **Model accuracy** — the *trained* net's price and delta lie within a **documented
+   error band** vs Black-Scholes over a held-out spot grid (proves the model is
+   accurate, not exact).
+
+| Family | Crate | Method | Reference | Tolerance / band | Status |
+|---|---|---|---|---|---|
+| Network inference | `oxis-ml` | softplus MLP forward value + twin input-gradient (hand-rolled) | numpy forward/backprop on fixed weights | ≤ 1e-12 | **validated** |
+| Differential-ML pricing (European, 1-D spot) | `oxis-ml` | twin network trained on pathwise payoff + differential labels; price + delta | Black-Scholes price/delta over an `[80,120]` spot grid | price max-abs ≤ 1.5 / RMSE ≤ 1.0; delta max-abs ≤ 0.10 / RMSE ≤ 0.06 (observed ~0.63/0.45, ~0.046/0.029) | **validated** |
+
+American options (neural optimal stopping), multi-dimensional pricing surfaces,
+higher Greeks, and a GPU backend are deferred to later Ring-4 milestones.
+
 ## Core numerics
 
 | Primitive | Crate | Method | Reference | Status |

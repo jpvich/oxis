@@ -51,6 +51,7 @@ oxis-bonds = { path = "crates/oxis-bonds" }
 oxis-stochastic = { path = "crates/oxis-stochastic" }
 oxis-stats = { path = "crates/oxis-stats" }
 oxis-portfolio = { path = "crates/oxis-portfolio" }
+oxis-ml = { path = "crates/oxis-ml" }
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

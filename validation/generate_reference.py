@@ -1056,6 +1056,116 @@ def gen_portfolio():
     }
 
 
+def _ml_softplus(x):
+    """Numerically stable softplus, matching the Rust activation."""
+    x = np.asarray(x, dtype=float)
+    return np.maximum(x, 0.0) + np.log1p(np.exp(-np.abs(x)))
+
+
+def _ml_sigmoid(x):
+    """Numerically stable logistic sigmoid (= softplus')."""
+    x = np.asarray(x, dtype=float)
+    return np.where(x >= 0.0, 1.0 / (1.0 + np.exp(-x)), np.exp(x) / (1.0 + np.exp(x)))
+
+
+def _ml_forward_grad(layers, x):
+    """Forward value y and input-gradient dy/dx of a softplus MLP (linear output).
+
+    Mirrors `Mlp::forward` + `Mlp::twin` in oxis-ml so the Rust inference can be
+    cross-checked to machine precision on fixed weights.
+    """
+    big_l = len(layers)
+    z = [np.asarray(x, dtype=float)]
+    a = []
+    for k, (w, b) in enumerate(layers):
+        ak = w @ z[k] + b
+        a.append(ak)
+        z.append(ak if k + 1 == big_l else _ml_softplus(ak))
+    y = float(z[big_l][0])
+    delta = [None] * big_l
+    delta[big_l - 1] = np.array([1.0])
+    for k in range(big_l - 2, -1, -1):
+        delta[k] = _ml_sigmoid(a[k]) * (layers[k + 1][0].T @ delta[k + 1])
+    g = layers[0][0].T @ delta[0]
+    return y, [float(v) for v in g]
+
+
+def _ml_bs_price_delta(s, k, r, sigma, t, kind):
+    """Black-Scholes price and delta (zero dividend yield)."""
+    sqrt_t = math.sqrt(t)
+    d1 = (math.log(s / k) + (r + 0.5 * sigma * sigma) * t) / (sigma * sqrt_t)
+    d2 = d1 - sigma * sqrt_t
+    if kind == "call":
+        price = s * sps.norm.cdf(d1) - k * math.exp(-r * t) * sps.norm.cdf(d2)
+        delta = sps.norm.cdf(d1)
+    else:
+        price = k * math.exp(-r * t) * sps.norm.cdf(-d2) - s * sps.norm.cdf(-d1)
+        delta = sps.norm.cdf(d1) - 1.0
+    return float(price), float(delta)
+
+
+def gen_ml():
+    """Differential-ML pricing reference — two layers (numpy/scipy oracle).
+
+    1. `inference`: a fixed-weight softplus MLP whose forward value and
+       input-gradient the Rust net must reproduce to <=1e-12 (proves the math).
+    2. `accuracy`: a Black-Scholes price/delta grid the Rust-trained surrogate must
+       fall within documented error bands of (proves the model is accurate).
+    """
+    # --- Layer 1: fixed-weight inference (2 inputs to exercise the general n-dim
+    # matvec, even though training is 1-D in spot). ---
+    rng = np.random.default_rng(20260627)
+    dims = [2, 4, 3, 1]
+    layers = []
+    for k in range(len(dims) - 1):
+        fan_in, fan_out = dims[k], dims[k + 1]
+        w = rng.standard_normal((fan_out, fan_in)) * (1.0 / math.sqrt(fan_in))
+        b = rng.standard_normal(fan_out) * 0.1
+        layers.append((w, b))
+    inputs = [[0.5, -0.3], [1.2, 0.8], [-1.0, 2.0], [0.0, 0.0], [2.5, -1.5]]
+    infer_cases = []
+    for x in inputs:
+        y, g = _ml_forward_grad(layers, x)
+        infer_cases.append({"x": x, "y": y, "dydx": g})
+
+    # --- Layer 2: trained-surrogate accuracy vs Black-Scholes ---
+    spec = {
+        "spot": 100.0, "strike": 100.0, "rate": 0.05,
+        "vol": 0.2, "maturity": 1.0, "option_type": "call",
+    }
+    grid = [float(s) for s in np.arange(80.0, 120.0 + 1e-9, 2.5)]
+    bs_price, bs_delta = [], []
+    for s in grid:
+        p, d = _ml_bs_price_delta(
+            s, spec["strike"], spec["rate"], spec["vol"], spec["maturity"], spec["option_type"]
+        )
+        bs_price.append(p)
+        bs_delta.append(d)
+
+    return {
+        "oracle": "numpy/scipy",
+        "oracle_version": f"numpy {np.__version__}, scipy {scipy.__version__}",
+        "model": "differential-ml",
+        "inference_tolerance": 1e-12,
+        "input_dim": dims[0],
+        "layers": [{"w": w.tolist(), "b": b.tolist()} for (w, b) in layers],
+        "cases": infer_cases,
+        "accuracy": {
+            "spec": spec,
+            "train": {"n_samples": 4096, "hidden": [30, 30], "epochs": 60,
+                      "spread": 2.0, "seed": 1},
+            "grid": grid,
+            "bs_price": bs_price,
+            "bs_delta": bs_delta,
+            # Observed on the reference platform: price max ~0.63 / rmse ~0.45,
+            # delta max ~0.046 / rmse ~0.029. Bands carry ~2x margin to absorb
+            # cross-platform floating-point drift over training.
+            "bands": {"price_max_abs": 1.5, "price_rmse": 1.0,
+                      "delta_max_abs": 0.10, "delta_rmse": 0.06},
+        },
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -1073,6 +1183,7 @@ def main():
         "heston_european.json": gen_heston_european(),
         "stats.json": gen_stats(),
         "portfolio.json": gen_portfolio(),
+        "ml.json": gen_ml(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)
