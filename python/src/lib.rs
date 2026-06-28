@@ -11,6 +11,7 @@ use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
+use oxis_ml::{BsSpec, TrainConfig, differential_ml_price};
 use oxis_portfolio::{
     Holding, covariance_matrix as cov_matrix_core, efficient_frontier_point,
     min_variance_weights as min_var_core, mwr as mwr_core, portfolio_risk as portfolio_risk_core,
@@ -1065,6 +1066,59 @@ fn optimize<'py>(
     Ok(d)
 }
 
+/// Train a differential-ML surrogate for a European option and return its price
+/// and delta alongside the Black-Scholes baseline. Training is deterministic given
+/// `seed`. `hidden` defaults to two layers of 30 units.
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, maturity, option_type="call",
+    samples=4096, epochs=60, spread=2.0, seed=1, hidden=None))]
+#[allow(clippy::too_many_arguments)]
+fn differential_ml<'py>(
+    py: Python<'py>,
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    maturity: f64,
+    option_type: &str,
+    samples: usize,
+    epochs: usize,
+    spread: f64,
+    seed: u64,
+    hidden: Option<Vec<usize>>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let option_type = parse_option_type(option_type)?;
+    let cfg = TrainConfig {
+        spec: BsSpec {
+            spot,
+            strike,
+            rate,
+            vol,
+            maturity,
+            option_type,
+        },
+        n_samples: samples,
+        hidden: hidden.unwrap_or_else(|| vec![30, 30]),
+        epochs,
+        spread,
+        seed,
+    };
+    let r = differential_ml_price(&cfg).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("spot", r.spot)?;
+    d.set_item("option_type", r.option_type)?;
+    d.set_item("ml_price", r.ml_price)?;
+    d.set_item("ml_delta", r.ml_delta)?;
+    d.set_item("bs_price", r.bs_price)?;
+    d.set_item("bs_delta", r.bs_delta)?;
+    d.set_item("price_abs_err", r.price_abs_err)?;
+    d.set_item("delta_abs_err", r.delta_abs_err)?;
+    d.set_item("n_samples", r.n_samples)?;
+    d.set_item("epochs", r.epochs)?;
+    d.set_item("final_loss", r.final_loss)?;
+    Ok(d)
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1098,6 +1152,7 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(covariance_matrix, m)?)?;
     m.add_function(wrap_pyfunction!(portfolio_risk, m)?)?;
     m.add_function(wrap_pyfunction!(optimize, m)?)?;
+    m.add_function(wrap_pyfunction!(differential_ml, m)?)?;
     m.add_class::<YieldCurve>()?;
     m.add_class::<FixedRateBond>()?;
     Ok(())

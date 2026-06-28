@@ -1,7 +1,7 @@
 [package]
 name = "oxis-ml"
 version = "0.0.0"
-description = "ML-based pricing for OXIS (neural American options), validated against the classical engines. Reserved — Ring 4."
+description = "ML-based pricing for OXIS — differential machine learning (twin networks), hand-rolled and validated against the classical engines. Ring 4."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -13,3 +13,11 @@ workspace = true
 
 [dependencies]
 oxis-core = { workspace = true }
+oxis-pricing = { workspace = true }
+oxis-greeks = { workspace = true }
+serde = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

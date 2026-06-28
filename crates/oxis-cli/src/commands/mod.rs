@@ -5,6 +5,7 @@ mod curve;
 mod exotic;
 mod greeks;
 mod implied_vol;
+mod ml;
 mod portfolio;
 mod price;
 mod simulate;
@@ -51,6 +52,8 @@ pub enum Command {
     Stats(stats::StatsArgs),
     /// Portfolio valuation, performance, allocation, risk, and optimization.
     Portfolio(portfolio::PortfolioArgs),
+    /// ML-based pricing (differential machine learning), vs the classical engines.
+    Ml(ml::MlArgs),
 }
 
 impl Command {
@@ -66,6 +69,7 @@ impl Command {
             Command::Simulate(args) => simulate::run(args, ctx),
             Command::Stats(args) => stats::run(args, ctx),
             Command::Portfolio(args) => portfolio::run(args, ctx),
+            Command::Ml(args) => ml::run(args, ctx),
         }
     }
 }

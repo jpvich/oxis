@@ -30,7 +30,7 @@ Legend: ✅ first-class · ◐ partial / limited (and, for RustQuant, **unvalida
 | VaR / Expected Shortfall | ◐ | ❌ | ✅ Ring 3 (`oxis-stats`) — **validated vs numpy/scipy** (≤1e-10; historical, parametric Gaussian, Cornish-Fisher) |
 | Portfolio: holdings / valuation / performance (TWR, MWR) | ❌ | ◐ | ✅ Ring 3 (`oxis-portfolio`) — **validated vs numpy/scipy** (≤1e-10; lot cost basis, mark-to-market, TWR, MWR/IRR, risk aggregation) |
 | Portfolio optimization / allocation | ❌ | ◐ | ✅ Ring 3 (`oxis-portfolio`) — **validated vs numpy** (≤1e-10; Markowitz min-variance / tangency / efficient frontier, unconstrained) |
-| **ML / neural option pricing** | ❌ | ❌ | 🔜 **Ring 4 — differentiator** (`oxis-ml`) |
+| **ML / neural option pricing** | ❌ | ❌ | ✅ **Ring 4 — differentiator** (`oxis-ml`) — **differential ML** (Huge-Savine twin network, hand-rolled, no framework); price + delta validated vs Black-Scholes (inference exact ≤1e-12; trained accuracy within documented bands). European 1-D; American/multi-D deferred |
 | Market-data API (provider-agnostic) | ❌ | ◐ (Yahoo only) | 🔜 long-term (`oxis-data`) |
 
 ## Ergonomics & engineering (the consistent edge)

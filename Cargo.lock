@@ -254,6 +254,7 @@ dependencies = [
  "oxis-core",
  "oxis-curves",
  "oxis-greeks",
+ "oxis-ml",
  "oxis-portfolio",
  "oxis-pricing",
  "oxis-stats",
@@ -300,6 +301,12 @@ name = "oxis-ml"
 version = "0.0.0"
 dependencies = [
  "oxis-core",
+ "oxis-greeks",
+ "oxis-pricing",
+ "rand",
+ "rand_distr",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -333,6 +340,7 @@ dependencies = [
  "oxis-core",
  "oxis-curves",
  "oxis-greeks",
+ "oxis-ml",
  "oxis-portfolio",
  "oxis-pricing",
  "oxis-stats",
