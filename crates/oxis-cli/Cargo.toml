@@ -28,3 +28,5 @@ oxis-portfolio = { workspace = true }
 oxis-ml = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
+rustyline = { workspace = true }
+shlex = { workspace = true }
