@@ -17,10 +17,17 @@ use crate::Cli;
 /// Words handled by the REPL itself rather than the clap parser.
 const BUILTINS: &[&str] = &["help", "quit", "exit"];
 
+/// Block-letter banner shown when the REPL opens.
+const BANNER: &str = r"
+  ██████  ██   ██ ██ ███████
+ ██    ██  ██ ██  ██ ██
+ ██    ██   ███   ██ ███████
+ ██    ██  ██ ██  ██      ██
+  ██████  ██   ██ ██ ███████";
+
 /// Run the interactive REPL until EOF (Ctrl-D), `quit`, or `exit`.
 pub fn run() -> anyhow::Result<()> {
-    println!("OXIS interactive REPL — type `help`, `<command> --help`, or `quit`.");
-    println!("Commands are identical to the CLI (without the leading `oxis`).");
+    print_banner();
 
     let helper = ReplHelper::new();
     let mut editor: Editor<ReplHelper, rustyline::history::DefaultHistory> =
@@ -81,10 +88,48 @@ fn run_line(line: &str) {
     }
 }
 
+/// Print the opening banner: block-letter logo, version, and the live command list.
+fn print_banner() {
+    let version = env!("CARGO_PKG_VERSION");
+    println!("{BANNER}");
+    println!("  Open eXtensible Instruments & Statistics · v{version}");
+    println!();
+    println!("Interactive REPL — commands are identical to the CLI (without the leading `oxis`).");
+    println!("Type `help`, `<command> --help`, or `quit`. Tab completes commands and flags.");
+    println!();
+    print_commands();
+}
+
+/// Name + one-line description of every top-level command, introspected from
+/// clap so the listing tracks the real command set (never hand-maintained).
+fn command_overview() -> Vec<(String, String)> {
+    Cli::command()
+        .get_subcommands()
+        .map(|c| {
+            let about = c.get_about().map(|s| s.to_string()).unwrap_or_default();
+            (c.get_name().to_string(), about)
+        })
+        .collect()
+}
+
+/// Print the available commands as an aligned, dynamically built table.
+fn print_commands() {
+    let cmds = command_overview();
+    let width = cmds.iter().map(|(n, _)| n.len()).max().unwrap_or(0);
+    println!("Commands:");
+    for (name, about) in cmds {
+        // Keep the description to its first line for a compact overview.
+        let about = about.lines().next().unwrap_or("");
+        println!("  {name:<width$}  {about}");
+    }
+}
+
 fn print_help() {
-    println!("REPL commands:");
+    println!("REPL builtins:");
     println!("  help            show this message");
     println!("  quit | exit     leave the REPL (or press Ctrl-D)");
+    println!();
+    print_commands();
     println!();
     println!("Anything else is run as an `oxis` command. Examples:");
     println!("  price --spot 100 --strike 100 --rate 0.05 --vol 0.2 --t 1 --type call");

@@ -1,0 +1,65 @@
+[package]
+name = "oxis"
+version = "0.0.0"
+description = "OXIS — Open eXtensible Instruments & Statistics: a validated quantitative-finance library, CLI, and REPL."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+# The single front door. `oxis` is both the library facade (re-exports every
+# module crate as `oxis::pricing`, `oxis::ml`, …) and the `oxis` binary. A Rust
+# user adds one dependency (`cargo add oxis`); a CLI user installs one crate
+# (`cargo install oxis`). The internal `oxis-*` crates are dependencies they
+# never name.
+[lib]
+name = "oxis"
+path = "src/lib.rs"
+
+# The CLI binary. Built by default (the `cli` feature is on) so `cargo install
+# oxis` and a plain `cargo build` produce the full `oxis` command. Library-only
+# users can drop it with `default-features = false`.
+[[bin]]
+name = "oxis"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[lints]
+workspace = true
+
+[features]
+default = ["cli"]
+# Each module is a feature so a library user can compile only what they need:
+# `oxis = { version = "0.1", default-features = false, features = ["pricing", "ml"] }`.
+pricing = ["dep:oxis-pricing"]
+greeks = ["dep:oxis-greeks", "pricing"]
+curves = ["dep:oxis-curves"]
+bonds = ["dep:oxis-bonds"]
+stochastic = ["dep:oxis-stochastic"]
+stats = ["dep:oxis-stats"]
+portfolio = ["dep:oxis-portfolio"]
+ml = ["dep:oxis-ml", "pricing"]
+# Everything the library exposes.
+full = ["pricing", "greeks", "curves", "bonds", "stochastic", "stats", "portfolio", "ml"]
+# The CLI/REPL binary: needs every module plus the arg-parsing/line-editing deps.
+cli = ["full", "dep:clap", "dep:anyhow", "dep:rustyline", "dep:shlex"]
+
+[dependencies]
+# Core is always present — it is the stable contract every surface builds on.
+oxis-core = { workspace = true }
+# Module crates, re-exported by the facade. Optional so library users pay only
+# for what they enable; the `cli` feature turns them all on for the binary.
+oxis-pricing = { workspace = true, optional = true }
+oxis-greeks = { workspace = true, optional = true }
+oxis-curves = { workspace = true, optional = true }
+oxis-bonds = { workspace = true, optional = true }
+oxis-stochastic = { workspace = true, optional = true }
+oxis-stats = { workspace = true, optional = true }
+oxis-portfolio = { workspace = true, optional = true }
+oxis-ml = { workspace = true, optional = true }
+# CLI/REPL-only dependencies, gated behind the `cli` feature.
+clap = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+rustyline = { workspace = true, optional = true }
+shlex = { workspace = true, optional = true }

@@ -45,7 +45,10 @@ Per-model method and validation status live in [`docs/models.md`](docs/models.md
 
 ## Install / build
 
-OXIS is not yet published to crates.io / PyPI; build from source.
+OXIS is not yet published to crates.io / PyPI; build from source. Everything
+lives behind a **single `oxis` crate** — the library facade, the CLI, and the
+REPL are one package. The internal `oxis-*` crates are an implementation detail
+you never name.
 
 ```bash
 # Rust workspace
@@ -53,12 +56,37 @@ cargo build --workspace --release        # builds the `oxis` binary at target/re
 cargo test  --workspace                   # run the full validated test suite
 
 # install the CLI/REPL binary onto your PATH
-cargo install --path crates/oxis-cli      # provides the `oxis` command
+cargo install --path crates/oxis          # provides the `oxis` command
 
 # Python bindings (PyO3 + maturin) — from a virtualenv
 pip install maturin
 cd python && maturin develop              # builds and installs the `oxis` module
 ```
+
+### Use OXIS as a Rust library
+
+Add the one crate and reach every module through it (`oxis::pricing`,
+`oxis::ml`, …):
+
+```toml
+# Cargo.toml — the whole library:
+oxis = "0.1"
+# …or only the modules you need (drops the CLI/REPL deps too):
+oxis = { version = "0.1", default-features = false, features = ["pricing", "ml"] }
+```
+
+```rust
+use oxis::core::{EuropeanOption, MarketData, OptionType};
+use oxis::pricing::black_scholes;
+
+let market = MarketData::new(100.0, 0.05, 0.2, 0.0);
+let option = EuropeanOption { strike: 100.0, expiry_years: 1.0, option_type: OptionType::Call };
+let price = black_scholes(&option, &market).unwrap();
+```
+
+Per-module features: `pricing`, `greeks`, `curves`, `bonds`, `stochastic`,
+`stats`, `portfolio`, `ml` (`full` enables all; `cli` adds the binary, on by
+default).
 
 Toolchain: Rust ≥ 1.85 (edition 2024). QuantLib-Python is **only** needed to *regenerate* validation reference data, never at runtime.
 

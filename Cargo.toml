@@ -7,7 +7,7 @@ members = [
     "crates/oxis-curves",
     "crates/oxis-bonds",
     "crates/oxis-stochastic",
-    "crates/oxis-cli",
+    "crates/oxis",
     "crates/oxis-stats",
     "crates/oxis-portfolio",
     "crates/oxis-ml",
@@ -28,12 +28,12 @@ homepage = "https://github.com/jpvich/oxis"
 # Serialization — `--json` output and the typed interchange records.
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Library error type (oxis-core) and app-level errors (oxis-cli / future apps).
+# Library error type (oxis-core) and app-level errors (the `oxis` CLI / future apps).
 thiserror = "2"
 anyhow = "1"
-# CLI argument parsing (oxis-cli only).
+# CLI argument parsing (the `oxis` binary only, behind its `cli` feature).
 clap = { version = "4", features = ["derive"] }
-# Interactive REPL line editor (oxis-cli only): history, line editing, and a
+# Interactive REPL line editor (the `oxis` binary only): history, line editing, and a
 # completer. `shlex` tokenizes a REPL line into argv (quote-aware) so each line
 # is re-parsed by the same clap definitions as the CLI.
 rustyline = { version = "14", features = ["derive"] }

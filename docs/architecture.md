@@ -87,7 +87,7 @@ Breadth is earned incrementally; each ring begins once the previous is solid.
 
 | Ring | Scope | Crates | Status |
 |---|---|---|---|
-| **1** | Validated pricing core | `oxis-core`, `oxis-pricing`, `oxis-greeks`, `oxis-cli` | in progress |
+| **1** | Validated pricing core | `oxis-core`, `oxis-pricing`, `oxis-greeks`, `oxis` (facade + CLI/REPL) | in progress |
 | **2** | Breadth: exotics, term structures, bonds, more processes | (extends pricing/core) | planned |
 | **3** | Risk & portfolio; statistics & time-series | `oxis-stats`, `oxis-portfolio` | reserved (skeleton) |
 | **4** | ML-based pricing (the differentiator) | `oxis-ml` | reserved (skeleton) |
