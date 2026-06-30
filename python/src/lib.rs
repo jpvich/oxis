@@ -11,7 +11,7 @@ use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
-use oxis_ml::{BsSpec, TrainConfig, differential_ml_price};
+use oxis_ml::{AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price};
 use oxis_portfolio::{
     Holding, covariance_matrix as cov_matrix_core, efficient_frontier_point,
     min_variance_weights as min_var_core, mwr as mwr_core, portfolio_risk as portfolio_risk_core,
@@ -1119,6 +1119,65 @@ fn differential_ml<'py>(
     Ok(d)
 }
 
+/// Price an American option with a neural engine and return its estimate
+/// alongside the binomial (CRR) baseline. Training is deterministic given `seed`.
+/// `method` is currently `"deep-lsm"`; `hidden` defaults to one layer of 16 units.
+#[pyfunction]
+#[pyo3(signature = (spot, strike, rate, vol, maturity, option_type="put",
+    method="deep-lsm", paths=8192, steps=50, epochs=20, seed=11, hidden=None,
+    dividend_yield=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn american_ml<'py>(
+    py: Python<'py>,
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    maturity: f64,
+    option_type: &str,
+    method: &str,
+    paths: usize,
+    steps: usize,
+    epochs: usize,
+    seed: u64,
+    hidden: Option<Vec<usize>>,
+    dividend_yield: f64,
+) -> PyResult<Bound<'py, PyDict>> {
+    let option_type = parse_option_type(option_type)?;
+    let cfg = AmericanMlConfig {
+        market: MarketData::new(spot, rate, vol, dividend_yield),
+        strike,
+        expiry: maturity,
+        paths,
+        steps,
+        seed,
+        hidden: hidden.unwrap_or_else(|| vec![16]),
+        epochs,
+    };
+    let r = match method {
+        "deep-lsm" | "deep_lsm" => deep_lsm_price(option_type, &cfg),
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "unknown method {other:?} (expected \"deep-lsm\")"
+            )));
+        }
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let d = PyDict::new(py);
+    d.set_item("method", r.method)?;
+    d.set_item("option_type", r.option_type)?;
+    d.set_item("spot", r.spot)?;
+    d.set_item("strike", r.strike)?;
+    d.set_item("ml_price", r.ml_price)?;
+    d.set_item("standard_error", r.standard_error)?;
+    d.set_item("binomial_price", r.binomial_price)?;
+    d.set_item("abs_err", r.abs_err)?;
+    d.set_item("paths", r.paths)?;
+    d.set_item("steps", r.steps)?;
+    d.set_item("epochs", r.epochs)?;
+    Ok(d)
+}
+
 /// The `oxis` Python module.
 #[pymodule]
 fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1153,6 +1212,7 @@ fn oxis(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(portfolio_risk, m)?)?;
     m.add_function(wrap_pyfunction!(optimize, m)?)?;
     m.add_function(wrap_pyfunction!(differential_ml, m)?)?;
+    m.add_function(wrap_pyfunction!(american_ml, m)?)?;
     m.add_class::<YieldCurve>()?;
     m.add_class::<FixedRateBond>()?;
     Ok(())

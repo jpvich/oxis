@@ -118,9 +118,19 @@ test vs a trusted baseline") is preserved by splitting the test:
 |---|---|---|---|---|---|
 | Network inference | `oxis-ml` | softplus MLP forward value + twin input-gradient (hand-rolled) | numpy forward/backprop on fixed weights | ≤ 1e-12 | **validated** |
 | Differential-ML pricing (European, 1-D spot) | `oxis-ml` | twin network trained on pathwise payoff + differential labels; price + delta | Black-Scholes price/delta over an `[80,120]` spot grid | price max-abs ≤ 1.5 / RMSE ≤ 1.0; delta max-abs ≤ 0.10 / RMSE ≤ 0.06 (observed ~0.63/0.45, ~0.046/0.029) | **validated** |
+| Deep LSM (American put, 1-D spot) | `oxis-ml` | Longstaff-Schwartz with a per-date neural continuation regression (a fresh softplus MLP of `S/K` per exercise date replaces the `{1, S/K, (S/K)²}` polynomial; same ITM-only regression, antithetic pairs, and per-pair seeding) | QuantLib CRR American tree (2000 steps) over a `{90,100,110}` spot grid | `\|price − binomial\| ≤ 5·SE + 0.40` (observed `\|Δ\|` ~0.21–0.23, SE ~0.09–0.12; gap dominated by the 10-step Bermudan-vs-American exercise discretization, which classical LSM shares) | **validated** |
 
-American options (neural optimal stopping), multi-dimensional pricing surfaces,
-higher Greeks, and a GPU backend are deferred to later Ring-4 milestones.
+**Deep LSM.** The estimate is low-biased exactly like classical Longstaff-Schwartz,
+so the trusted-baseline contract is a band against the QuantLib-validated binomial
+tree, not exactness. The substitution is local — only the continuation regression
+changes — so at matched `(paths, steps, seed)` the neural price tracks the polynomial
+LSM it replaces. The accuracy band is sized for a deliberately light config (4096
+paths, 10 exercise dates) to keep the test fast; the discretization gap shrinks with
+more steps.
+
+Neural optimal stopping (Deep Optimal Stopping, the headline American method),
+multi-dimensional pricing surfaces, higher Greeks, and a GPU backend are deferred to
+later Ring-4 milestones.
 
 ## Core numerics
 

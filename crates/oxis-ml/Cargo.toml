@@ -18,6 +18,7 @@ oxis-greeks = { workspace = true }
 serde = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+rayon = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

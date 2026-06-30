@@ -41,15 +41,19 @@
 #![forbid(unsafe_code)]
 
 mod activation;
+mod american;
 mod data;
+mod deep_lsm;
 mod mlp;
+mod optim;
 mod result;
 mod train;
 
 pub use activation::{sigmoid, softplus, softplus_prime, softplus_second};
 pub use data::{BsSpec, DiffSample, generate_european};
+pub use deep_lsm::{AmericanMlConfig, deep_lsm_american};
 pub use mlp::{Forward, Layer, Mlp, Twin};
-pub use result::{MlPricingReport, differential_ml_price};
+pub use result::{AmericanMlReport, MlPricingReport, deep_lsm_price, differential_ml_price};
 pub use train::{TrainConfig, TrainedModel, train_differential};
 
 #[cfg(test)]

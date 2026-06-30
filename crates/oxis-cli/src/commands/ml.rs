@@ -8,8 +8,8 @@
 
 use super::CliOptionType;
 use oxis_core::output::render;
-use oxis_core::{OxisError, RunContext};
-use oxis_ml::{BsSpec, TrainConfig, differential_ml_price};
+use oxis_core::{MarketData, OxisError, RunContext};
+use oxis_ml::{AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price};
 
 /// Flags for `oxis ml`.
 #[derive(clap::Args)]
@@ -22,6 +22,15 @@ pub struct MlArgs {
 enum MlCmd {
     /// Train a differential-ML surrogate and price a European option vs Black-Scholes.
     Price(PriceArgs),
+    /// Price an American option with a neural engine vs the binomial baseline.
+    American(AmericanArgs),
+}
+
+/// Neural American pricing method.
+#[derive(clap::ValueEnum, Clone, Copy)]
+enum AmericanMethod {
+    /// Longstaff-Schwartz with a per-date neural continuation regression.
+    DeepLsm,
 }
 
 #[derive(clap::Args)]
@@ -62,10 +71,55 @@ struct PriceArgs {
     hidden: Vec<usize>,
 }
 
+#[derive(clap::Args)]
+#[command(allow_negative_numbers = true)]
+struct AmericanArgs {
+    /// Pricing method.
+    #[arg(long, value_enum, default_value_t = AmericanMethod::DeepLsm)]
+    method: AmericanMethod,
+    /// Spot price.
+    #[arg(long)]
+    spot: f64,
+    /// Strike.
+    #[arg(long)]
+    strike: f64,
+    /// Continuously compounded risk-free rate.
+    #[arg(long)]
+    rate: f64,
+    /// Volatility.
+    #[arg(long)]
+    vol: f64,
+    /// Time to maturity, in years.
+    #[arg(long)]
+    maturity: f64,
+    /// Call or put.
+    #[arg(long = "type", value_enum, default_value_t = CliOptionType::Put)]
+    option_type: CliOptionType,
+    /// Continuously compounded dividend yield.
+    #[arg(long, default_value_t = 0.0)]
+    dividend_yield: f64,
+    /// Number of simulated paths (drawn as antithetic pairs).
+    #[arg(long, default_value_t = 8192)]
+    paths: usize,
+    /// Number of exercise dates in the time grid.
+    #[arg(long, default_value_t = 50)]
+    steps: usize,
+    /// Training epochs per exercise date.
+    #[arg(long, default_value_t = 20)]
+    epochs: usize,
+    /// RNG seed (fixes paths, init, and shuffling).
+    #[arg(long, default_value_t = 11)]
+    seed: u64,
+    /// Hidden-layer widths, comma-separated (e.g. `16`).
+    #[arg(long, value_delimiter = ',', default_value = "16")]
+    hidden: Vec<usize>,
+}
+
 /// Dispatch the `oxis ml` subcommand.
 pub fn run(args: MlArgs, ctx: &RunContext) -> anyhow::Result<()> {
     match args.command {
         MlCmd::Price(a) => run_price(a, ctx),
+        MlCmd::American(a) => run_american(a, ctx),
     }
 }
 
@@ -89,6 +143,27 @@ fn run_price(a: PriceArgs, ctx: &RunContext) -> anyhow::Result<()> {
         seed: a.seed,
     };
     let report = differential_ml_price(&cfg)?;
+    println!("{}", render(&report, ctx.format));
+    Ok(())
+}
+
+fn run_american(a: AmericanArgs, ctx: &RunContext) -> anyhow::Result<()> {
+    if a.hidden.is_empty() {
+        return Err(OxisError::invalid_input("--hidden must list at least one width").into());
+    }
+    let cfg = AmericanMlConfig {
+        market: MarketData::new(a.spot, a.rate, a.vol, a.dividend_yield),
+        strike: a.strike,
+        expiry: a.maturity,
+        paths: a.paths,
+        steps: a.steps,
+        seed: a.seed,
+        hidden: a.hidden,
+        epochs: a.epochs,
+    };
+    let report = match a.method {
+        AmericanMethod::DeepLsm => deep_lsm_price(a.option_type.into(), &cfg)?,
+    };
     println!("{}", render(&report, ctx.format));
     Ok(())
 }
