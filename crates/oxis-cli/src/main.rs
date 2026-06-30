@@ -4,12 +4,14 @@
 //! calls the core, and renders the result through [`oxis_core::output`]. Global
 //! flags select the output format; per-command flags carry the inputs.
 //!
-//! Implemented: `oxis price` (Black-Scholes European). The REPL and the
-//! `greeks` / `implied-vol` / `completions` subcommands land in later milestones.
+//! Running `oxis` with no subcommand opens the interactive [`repl`]; with a
+//! subcommand it parses, dispatches to the matching module core, and renders the
+//! result through [`oxis_core::output`].
 
 #![forbid(unsafe_code)]
 
 mod commands;
+mod repl;
 
 use clap::Parser;
 use commands::Command;
@@ -23,17 +25,17 @@ use std::process::ExitCode;
     about = "OXIS — Open eXtensible Instruments & Statistics",
     propagate_version = true
 )]
-struct Cli {
+pub(crate) struct Cli {
     #[command(flatten)]
-    global: GlobalArgs,
+    pub(crate) global: GlobalArgs,
 
     #[command(subcommand)]
-    command: Option<Command>,
+    pub(crate) command: Option<Command>,
 }
 
 /// Output/verbosity flags, available before or after the subcommand.
 #[derive(clap::Args)]
-struct GlobalArgs {
+pub(crate) struct GlobalArgs {
     /// Emit structured JSON.
     #[arg(long, global = true)]
     json: bool,
@@ -71,12 +73,8 @@ fn main() -> ExitCode {
 
     let result = match cli.command {
         Some(command) => command.run(&ctx),
-        None => {
-            // No subcommand: the interactive REPL lands later. For now, point the
-            // user at the available commands.
-            eprintln!("oxis: run `oxis price --help` to get started (REPL coming soon).");
-            return ExitCode::SUCCESS;
-        }
+        // No subcommand: drop into the interactive REPL.
+        None => repl::run(),
     };
 
     match result {
