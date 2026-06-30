@@ -23,23 +23,23 @@ Quantitative pricing code is only trustworthy if it is validated — a plausible
 
 Every row below is validated against its reference in CI (Linux + macOS).
 
-| Capability | Crate | Reference | Status |
+| Capability | Module | Reference | Status |
 |---|---|---|---|
-| Black-Scholes European (closed-form) | `oxis-pricing` | QuantLib `AnalyticEuropeanEngine` | ✅ |
-| Binomial CRR (European + American) | `oxis-pricing` | QuantLib `BinomialVanillaEngine` | ✅ |
-| Monte Carlo European | `oxis-pricing` | Black-Scholes | ✅ |
-| Longstaff-Schwartz (American MC) | `oxis-pricing` | QuantLib `MCAmericanEngine` + binomial | ✅ |
-| Exotics — barrier, lookback, Asian | `oxis-pricing` | QuantLib analytic / MC | ✅ |
-| Analytic Greeks (Δ Γ ν Θ ρ) | `oxis-greeks` | QuantLib `AnalyticEuropeanEngine` | ✅ |
-| Implied-volatility solver | `oxis-pricing` | round-trip + QuantLib | ✅ |
-| Yield curves / term structures | `oxis-curves` | QuantLib `ZeroCurve` / `DiscountCurve` | ✅ |
-| Fixed-rate bonds (price, YTM, duration, convexity) | `oxis-bonds` | QuantLib `FixedRateBond` / `BondFunctions` | ✅ |
-| Stochastic processes (GBM, OU, Vasicek, CIR, Merton, Heston) | `oxis-stochastic` | closed-form terminal moments | ✅ |
-| Statistics & risk (returns, vol, Sharpe/Sortino, VaR/ES, drawdown, β, JB, ACF) | `oxis-stats` | numpy / scipy / pandas | ✅ |
-| Portfolio (valuation, TWR/MWR, allocation, risk, Markowitz) | `oxis-portfolio` | numpy / scipy | ✅ |
-| **ML — differential ML (European price + delta)** | `oxis-ml` | Black-Scholes (inference ≤1e-12; trained within bands) | ✅ |
-| **ML — Deep LSM (American put)** | `oxis-ml` | QuantLib CRR American tree (within bands) | ✅ |
-| **ML — Deep Optimal Stopping (American put)** | `oxis-ml` | QuantLib CRR American tree (within bands) | ✅ |
+| Black-Scholes European (closed-form) | `oxis::pricing` | QuantLib `AnalyticEuropeanEngine` | ✅ |
+| Binomial CRR (European + American) | `oxis::pricing` | QuantLib `BinomialVanillaEngine` | ✅ |
+| Monte Carlo European | `oxis::pricing` | Black-Scholes | ✅ |
+| Longstaff-Schwartz (American MC) | `oxis::pricing` | QuantLib `MCAmericanEngine` + binomial | ✅ |
+| Exotics — barrier, lookback, Asian | `oxis::pricing` | QuantLib analytic / MC | ✅ |
+| Analytic Greeks (Δ Γ ν Θ ρ) | `oxis::greeks` | QuantLib `AnalyticEuropeanEngine` | ✅ |
+| Implied-volatility solver | `oxis::pricing` | round-trip + QuantLib | ✅ |
+| Yield curves / term structures | `oxis::curves` | QuantLib `ZeroCurve` / `DiscountCurve` | ✅ |
+| Fixed-rate bonds (price, YTM, duration, convexity) | `oxis::bonds` | QuantLib `FixedRateBond` / `BondFunctions` | ✅ |
+| Stochastic processes (GBM, OU, Vasicek, CIR, Merton, Heston) | `oxis::stochastic` | closed-form terminal moments | ✅ |
+| Statistics & risk (returns, vol, Sharpe/Sortino, VaR/ES, drawdown, β, JB, ACF) | `oxis::stats` | numpy / scipy / pandas | ✅ |
+| Portfolio (valuation, TWR/MWR, allocation, risk, Markowitz) | `oxis::portfolio` | numpy / scipy | ✅ |
+| **ML — differential ML (European price + delta)** | `oxis::ml` | Black-Scholes (inference ≤1e-12; trained within bands) | ✅ |
+| **ML — Deep LSM (American put)** | `oxis::ml` | QuantLib CRR American tree (within bands) | ✅ |
+| **ML — Deep Optimal Stopping (American put)** | `oxis::ml` | QuantLib CRR American tree (within bands) | ✅ |
 
 Per-model method and validation status live in [`docs/models.md`](docs/models.md); a living capability-coverage matrix vs RustQuant/QuantLib is in [`docs/parity.md`](docs/parity.md).
 
@@ -94,12 +94,26 @@ Toolchain: Rust ≥ 1.85 (edition 2024). QuantLib-Python is **only** needed to *
 
 ### Interactive REPL
 
-Run `oxis` with no subcommand to open the REPL. Commands are identical to the CLI (without the leading `oxis`); it has history (↑/↓), tab-completion of commands and flags, and per-line output flags. `help` lists builtins; `quit`, `exit`, or Ctrl-D leaves.
+Run `oxis` with no subcommand to open the REPL. It opens with a banner and a command listing built live from the parser, then takes the same commands as the CLI (without the leading `oxis`). It has history (↑/↓), tab-completion of commands, nested subcommands, and flags, and per-line output flags. `help` reprints the listing; `quit`, `exit`, or Ctrl-D leaves.
 
 ```text
 $ oxis
-OXIS interactive REPL — type `help`, `<command> --help`, or `quit`.
-Commands are identical to the CLI (without the leading `oxis`).
+  ██████  ██   ██ ██ ███████
+ ██    ██  ██ ██  ██ ██
+ ██    ██   ███   ██ ███████
+ ██    ██  ██ ██  ██      ██
+  ██████  ██   ██ ██ ███████
+  Open eXtensible Instruments & Statistics · v0.0.0
+
+Interactive REPL — commands are identical to the CLI (without the leading `oxis`).
+Type `help`, `<command> --help`, or `quit`. Tab completes commands and flags.
+
+Commands:
+  price        Price an option (`--model black-scholes|binomial`, `--style`)
+  greeks       Compute analytic Black-Scholes Greeks for a European option
+  ...          (the full list is generated from the command set)
+  ml           ML-based pricing (differential ML), vs the classical engines
+
 oxis> price --spot 100 --strike 100 --rate 0.05 --vol 0.2 --t 1 --type call
 price: 10.45058357218555
 oxis> --json greeks --spot 100 --strike 100 --rate 0.05 --vol 0.2 --t 1 --type call
@@ -183,17 +197,19 @@ s = oxis.stats(returns=[0.01, -0.02, 0.015, 0.03], periods_per_year=252)
 ### Rust
 
 ```rust
-use oxis_core::{EuropeanOption, MarketData, OptionType};
-use oxis_pricing::black_scholes;
+use oxis::core::{EuropeanOption, MarketData, OptionType};
+use oxis::pricing::black_scholes;
 
 let option = EuropeanOption { strike: 105.0, expiry_years: 1.0, option_type: OptionType::Call };
 let market = MarketData { spot: 100.0, rate: 0.05, volatility: 0.2, dividend_yield: 0.0 };
 let price = black_scholes(&option, &market)?;
 ```
 
+Every module is reached through the one crate: `oxis::core`, `oxis::pricing`, `oxis::greeks`, `oxis::curves`, `oxis::bonds`, `oxis::stochastic`, `oxis::stats`, `oxis::portfolio`, `oxis::ml`.
+
 ## Architecture
 
-OXIS is a **stable core** (`oxis-core`) plus a **module layer** that grows. The dependency direction is one-way — **module → core only**; a module never imports another module's internals, and shared logic belongs in the core.
+OXIS ships as a **single `oxis` crate**, but inside it is a **stable core** plus a **module layer** that grows. The dependency direction is one-way — **module → core only**; a module never imports another module's internals, and shared logic belongs in the core. Each module is published behind a Cargo feature and re-exported as `oxis::<module>`, so the internal crate split stays an implementation detail consumers never name.
 
 Modules come in **two kinds**:
 
