@@ -11,7 +11,9 @@ use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
 use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
 use oxis_curves::{Interpolation, YieldCurve as CurveCore};
 use oxis_greeks::analytic_greeks;
-use oxis_ml::{AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price};
+use oxis_ml::{
+    AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price, dos_price,
+};
 use oxis_portfolio::{
     Holding, covariance_matrix as cov_matrix_core, efficient_frontier_point,
     min_variance_weights as min_var_core, mwr as mwr_core, portfolio_risk as portfolio_risk_core,
@@ -1156,9 +1158,10 @@ fn american_ml<'py>(
     };
     let r = match method {
         "deep-lsm" | "deep_lsm" => deep_lsm_price(option_type, &cfg),
+        "dos" => dos_price(option_type, &cfg),
         other => {
             return Err(PyValueError::new_err(format!(
-                "unknown method {other:?} (expected \"deep-lsm\")"
+                "unknown method {other:?} (expected \"deep-lsm\" or \"dos\")"
             )));
         }
     }

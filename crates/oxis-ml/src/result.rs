@@ -7,11 +7,13 @@
 
 use crate::data::BsSpec;
 use crate::deep_lsm::{AmericanMlConfig, deep_lsm_american};
+use crate::dos::dos_american;
 use crate::train::{TrainConfig, train_differential};
 use oxis_core::{
     Cell, Column, EuropeanOption, ExerciseStyle, MarketData, OptionType, OxisError, Tabular,
 };
 use oxis_greeks::analytic_greeks;
+use oxis_pricing::McEstimate;
 use oxis_pricing::{binomial, black_scholes};
 use serde::Serialize;
 
@@ -185,7 +187,34 @@ pub fn deep_lsm_price(
     option_type: OptionType,
     cfg: &AmericanMlConfig,
 ) -> Result<AmericanMlReport, OxisError> {
-    let est = deep_lsm_american(option_type, cfg)?;
+    american_report(
+        "deep-lsm",
+        option_type,
+        cfg,
+        deep_lsm_american(option_type, cfg)?,
+    )
+}
+
+/// Price an American option by Deep Optimal Stopping and report it against the
+/// binomial baseline.
+///
+/// # Errors
+/// Propagates pricing errors ([`OxisError::InvalidInput`]).
+pub fn dos_price(
+    option_type: OptionType,
+    cfg: &AmericanMlConfig,
+) -> Result<AmericanMlReport, OxisError> {
+    american_report("dos", option_type, cfg, dos_american(option_type, cfg)?)
+}
+
+/// Assemble an [`AmericanMlReport`]: pair a neural estimate with the 2000-step CRR
+/// American tree (the QuantLib-validated baseline) for the same contract.
+fn american_report(
+    method: &'static str,
+    option_type: OptionType,
+    cfg: &AmericanMlConfig,
+    est: McEstimate,
+) -> Result<AmericanMlReport, OxisError> {
     let tree = binomial(
         option_type,
         ExerciseStyle::American,
@@ -195,7 +224,7 @@ pub fn deep_lsm_price(
         2000,
     )?;
     Ok(AmericanMlReport {
-        method: "deep-lsm",
+        method,
         option_type: option_type.as_str(),
         spot: cfg.market.spot,
         strike: cfg.strike,

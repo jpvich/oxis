@@ -69,3 +69,47 @@ def test_deep_itm_put_intrinsic():
     )
     assert abs(out["ml_price"] - 900.0) < 1e-9
     assert out["standard_error"] == 0.0
+
+
+def _dos_ref():
+    path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "validation", "reference", "dos.json"
+    )
+    with open(path) as f:
+        return json.load(f)
+
+
+def test_dos_within_band_vs_binomial():
+    acc = _dos_ref()["accuracy"]
+    spec, train, bands = acc["spec"], acc["train"], acc["bands"]
+    out = oxis.american_ml(
+        spot=100.0, strike=spec["strike"], rate=spec["rate"], vol=spec["vol"],
+        maturity=spec["maturity"], option_type=spec["option_type"], method="dos",
+        paths=train["paths"], steps=train["steps"], epochs=train["epochs"],
+        seed=train["seed"], hidden=train["hidden"],
+    )
+    budget = bands["se_mult"] * out["standard_error"] + bands["abs"]
+    assert out["abs_err"] <= budget
+    assert out["method"] == "dos"
+    assert out["ml_price"] > 0.0
+
+
+def test_dos_deterministic():
+    kw = dict(spot=100.0, strike=100.0, rate=0.05, vol=0.3, maturity=1.0,
+              method="dos", paths=2048, steps=8, epochs=10, seed=7, hidden=[12])
+    a = oxis.american_ml(**kw)
+    b = oxis.american_ml(**kw)
+    assert a["ml_price"] == b["ml_price"]
+    assert a["standard_error"] == b["standard_error"]
+
+
+def test_methods_agree():
+    # Deep LSM and DOS must agree with the binomial baseline within a loose band.
+    kw = dict(spot=100.0, strike=100.0, rate=0.05, vol=0.3, maturity=1.0,
+              option_type="put", paths=4096, steps=10, epochs=20, seed=11, hidden=[16])
+    deep = oxis.american_ml(method="deep-lsm", **kw)
+    dos = oxis.american_ml(method="dos", **kw)
+    assert deep["binomial_price"] == dos["binomial_price"]
+    for out in (deep, dos):
+        budget = 5.0 * out["standard_error"] + 0.60
+        assert out["abs_err"] <= budget

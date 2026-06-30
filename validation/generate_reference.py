@@ -1097,6 +1097,12 @@ def _ml_forward_value(layers, x):
     return y
 
 
+def _dos_forward(layers, x):
+    """Stop probability sigmoid(net(x)) of a Deep-Optimal-Stopping net — the
+    sigmoid-squashed forward value, used by the DOS inference checks."""
+    return float(_ml_sigmoid(_ml_forward_value(layers, x)))
+
+
 def _ml_bs_price_delta(s, k, r, sigma, t, kind):
     """Black-Scholes price and delta (zero dividend yield)."""
     sqrt_t = math.sqrt(t)
@@ -1234,6 +1240,65 @@ def gen_deep_lsm():
     }
 
 
+def gen_dos():
+    """Deep Optimal Stopping (neural American) reference — two layers.
+
+    1. `inference`: a fixed-weight 1-input net whose *stop probability*
+       sigmoid(net(x)) the Rust engine must reproduce to <=1e-12 (proves the math).
+    2. `accuracy`: QuantLib CRR American-put prices over a spot grid that the
+       Rust-trained DOS estimate must fall within documented bands of
+       (`|price - binomial| <= se_mult*SE + abs`), proving the model is accurate.
+    """
+    # --- Layer 1: fixed-weight inference (1 input = S/K), stop probability. ---
+    rng = np.random.default_rng(20260630)
+    dims = [1, 8, 1]
+    layers = []
+    for k in range(len(dims) - 1):
+        fan_in, fan_out = dims[k], dims[k + 1]
+        w = rng.standard_normal((fan_out, fan_in)) * (1.0 / math.sqrt(fan_in))
+        b = rng.standard_normal(fan_out) * 0.1
+        layers.append((w, b))
+    inputs = [[0.6], [0.8], [1.0], [1.2], [1.5]]
+    infer_cases = [{"x": x, "p": _dos_forward(layers, x)} for x in inputs]
+
+    # --- Layer 2: trained-policy accuracy vs QuantLib CRR American put. ---
+    days = 365  # Actual365 yearFraction = 1.0
+    spec = {
+        "strike": 100.0, "rate": 0.05, "vol": 0.3,
+        "maturity": 1.0, "option_type": "put",
+    }
+    grid = [90.0, 100.0, 110.0]
+    binomial_price = []
+    for s in grid:
+        ql.Settings.instance().evaluationDate = EVAL_DATE
+        process = _process(s, spec["rate"], spec["vol"], 0.0)
+        engine = ql.BinomialVanillaEngine(process, "crr", 2000)
+        option, _ = _american_option(spec["strike"], days, spec["option_type"])
+        option.setPricingEngine(engine)
+        binomial_price.append(float(option.NPV()))
+
+    return {
+        "oracle": "QuantLib",
+        "oracle_version": ql.__version__,
+        "model": "dos",
+        "inference_tolerance": 1e-12,
+        "input_dim": dims[0],
+        "layers": [{"w": w.tolist(), "b": b.tolist()} for (w, b) in layers],
+        "cases": infer_cases,
+        "accuracy": {
+            "spec": spec,
+            "train": {"paths": 4096, "steps": 10, "hidden": [16],
+                      "epochs": 20, "seed": 11},
+            "grid": grid,
+            "binomial_price": binomial_price,
+            # Observed (4096 paths / 10 steps): |Δtree| ~0.23-0.47, SE ~0.09-0.13.
+            # DOS sits a touch lower than Deep-LSM (a small-net/few-epoch lower
+            # bound plus the 10-step exercise discretization), so abs is wider.
+            "bands": {"se_mult": 5.0, "abs": 0.60},
+        },
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     outputs = {
@@ -1253,6 +1318,7 @@ def main():
         "portfolio.json": gen_portfolio(),
         "ml.json": gen_ml(),
         "deep_lsm.json": gen_deep_lsm(),
+        "dos.json": gen_dos(),
     }
     for name, out in outputs.items():
         path = os.path.join(here, "reference", name)

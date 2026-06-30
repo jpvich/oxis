@@ -9,7 +9,9 @@
 use super::CliOptionType;
 use oxis_core::output::render;
 use oxis_core::{MarketData, OxisError, RunContext};
-use oxis_ml::{AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price};
+use oxis_ml::{
+    AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price, dos_price,
+};
 
 /// Flags for `oxis ml`.
 #[derive(clap::Args)]
@@ -31,6 +33,8 @@ enum MlCmd {
 enum AmericanMethod {
     /// Longstaff-Schwartz with a per-date neural continuation regression.
     DeepLsm,
+    /// Deep Optimal Stopping (per-date stop-probability networks).
+    Dos,
 }
 
 #[derive(clap::Args)]
@@ -163,6 +167,7 @@ fn run_american(a: AmericanArgs, ctx: &RunContext) -> anyhow::Result<()> {
     };
     let report = match a.method {
         AmericanMethod::DeepLsm => deep_lsm_price(a.option_type.into(), &cfg)?,
+        AmericanMethod::Dos => dos_price(a.option_type.into(), &cfg)?,
     };
     println!("{}", render(&report, ctx.format));
     Ok(())
