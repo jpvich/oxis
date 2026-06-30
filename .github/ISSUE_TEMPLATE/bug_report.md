@@ -15,7 +15,7 @@ assignees: ''
 - [ ] `oxis-core` (types / math / output)
 - [ ] `oxis-pricing`
 - [ ] `oxis-greeks`
-- [ ] `oxis-cli` (CLI / REPL)
+- [ ] `oxis` (facade crate / CLI / REPL)
 - [ ] Python bindings
 - [ ] Validation / tooling
 - [ ] Other:
