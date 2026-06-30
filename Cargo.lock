@@ -305,6 +305,7 @@ dependencies = [
  "oxis-pricing",
  "rand",
  "rand_distr",
+ "rayon",
  "serde",
  "serde_json",
 ]

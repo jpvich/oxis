@@ -6,10 +6,15 @@
 //! implements [`Tabular`] as a single record.
 
 use crate::data::BsSpec;
+use crate::deep_lsm::{AmericanMlConfig, deep_lsm_american};
+use crate::dos::dos_american;
 use crate::train::{TrainConfig, train_differential};
-use oxis_core::{Cell, Column, EuropeanOption, MarketData, OxisError, Tabular};
+use oxis_core::{
+    Cell, Column, EuropeanOption, ExerciseStyle, MarketData, OptionType, OxisError, Tabular,
+};
 use oxis_greeks::analytic_greeks;
-use oxis_pricing::black_scholes;
+use oxis_pricing::McEstimate;
+use oxis_pricing::{binomial, black_scholes};
 use serde::Serialize;
 
 /// A differential-ML pricing result with its classical baseline.
@@ -95,6 +100,144 @@ pub fn differential_ml_price(cfg: &TrainConfig) -> Result<MlPricingReport, OxisE
         n_samples: model.n_samples,
         epochs: model.epochs,
         final_loss: model.final_loss,
+    })
+}
+
+/// A neural American pricing result with its trusted binomial baseline.
+///
+/// One report type serves both engines; `method` distinguishes `"deep-lsm"` from
+/// `"dos"`. The estimate is low-biased, so `binomial_price` (a 2000-step CRR tree,
+/// the QuantLib-validated baseline) is the oracle and `abs_err` the headline gap.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct AmericanMlReport {
+    /// Pricing method: `"deep-lsm"` or `"dos"`.
+    pub method: &'static str,
+    /// `"call"` or `"put"`.
+    pub option_type: &'static str,
+    /// Spot.
+    pub spot: f64,
+    /// Strike.
+    pub strike: f64,
+    /// Risk-free rate (continuously compounded).
+    pub rate: f64,
+    /// Volatility.
+    pub vol: f64,
+    /// Time to expiry in years.
+    pub maturity: f64,
+    /// Neural Monte-Carlo price estimate.
+    pub ml_price: f64,
+    /// Antithetic standard error of `ml_price`.
+    pub standard_error: f64,
+    /// Binomial (CRR, 2000-step American) baseline price.
+    pub binomial_price: f64,
+    /// `|ml_price − binomial_price|`.
+    pub abs_err: f64,
+    /// Simulated paths.
+    pub paths: usize,
+    /// Exercise dates.
+    pub steps: usize,
+    /// Training epochs per exercise date.
+    pub epochs: usize,
+}
+
+impl Tabular for AmericanMlReport {
+    fn columns(&self) -> Vec<Column> {
+        vec![
+            Column::new("method"),
+            Column::new("option_type"),
+            Column::new("spot"),
+            Column::new("strike"),
+            Column::new("rate"),
+            Column::new("vol"),
+            Column::new("maturity"),
+            Column::new("ml_price"),
+            Column::new("standard_error"),
+            Column::new("binomial_price"),
+            Column::new("abs_err"),
+            Column::new("paths"),
+            Column::new("steps"),
+            Column::new("epochs"),
+        ]
+    }
+    fn cells(&self) -> Vec<Cell> {
+        vec![
+            Cell::str(self.method),
+            Cell::str(self.option_type),
+            Cell::F64(self.spot),
+            Cell::F64(self.strike),
+            Cell::F64(self.rate),
+            Cell::F64(self.vol),
+            Cell::F64(self.maturity),
+            Cell::F64(self.ml_price),
+            Cell::F64(self.standard_error),
+            Cell::F64(self.binomial_price),
+            Cell::F64(self.abs_err),
+            Cell::Int(self.paths as i64),
+            Cell::Int(self.steps as i64),
+            Cell::Int(self.epochs as i64),
+        ]
+    }
+}
+
+/// Price an American option by Deep LSM and report it against the binomial baseline.
+///
+/// # Errors
+/// Propagates pricing errors ([`OxisError::InvalidInput`]).
+pub fn deep_lsm_price(
+    option_type: OptionType,
+    cfg: &AmericanMlConfig,
+) -> Result<AmericanMlReport, OxisError> {
+    american_report(
+        "deep-lsm",
+        option_type,
+        cfg,
+        deep_lsm_american(option_type, cfg)?,
+    )
+}
+
+/// Price an American option by Deep Optimal Stopping and report it against the
+/// binomial baseline.
+///
+/// # Errors
+/// Propagates pricing errors ([`OxisError::InvalidInput`]).
+pub fn dos_price(
+    option_type: OptionType,
+    cfg: &AmericanMlConfig,
+) -> Result<AmericanMlReport, OxisError> {
+    american_report("dos", option_type, cfg, dos_american(option_type, cfg)?)
+}
+
+/// Assemble an [`AmericanMlReport`]: pair a neural estimate with the 2000-step CRR
+/// American tree (the QuantLib-validated baseline) for the same contract.
+fn american_report(
+    method: &'static str,
+    option_type: OptionType,
+    cfg: &AmericanMlConfig,
+    est: McEstimate,
+) -> Result<AmericanMlReport, OxisError> {
+    let tree = binomial(
+        option_type,
+        ExerciseStyle::American,
+        &cfg.market,
+        cfg.strike,
+        cfg.expiry,
+        2000,
+    )?;
+    Ok(AmericanMlReport {
+        method,
+        option_type: option_type.as_str(),
+        spot: cfg.market.spot,
+        strike: cfg.strike,
+        rate: cfg.market.rate,
+        vol: cfg.market.volatility,
+        maturity: cfg.expiry,
+        ml_price: est.price,
+        standard_error: est.standard_error,
+        binomial_price: tree,
+        abs_err: (est.price - tree).abs(),
+        paths: cfg.paths,
+        steps: cfg.steps,
+        epochs: cfg.epochs,
     })
 }
 
