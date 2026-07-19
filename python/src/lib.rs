@@ -2,39 +2,39 @@
 //!
 //! A thin **Kind A** wrapper: it converts Python arguments into the plain core
 //! types, calls the *same* pure pricing core the CLI uses, and maps
-//! [`OxisError`](oxis_core::OxisError) to a Python `ValueError`. No pricing
+//! [`OxisError`](oxis_lib::core::OxisError) to a Python `ValueError`. No pricing
 //! logic lives here — bindings never duplicate the core.
 
 #![forbid(unsafe_code)]
 
-use oxis_bonds::{Cashflow, FixedRateBond as BondCore};
-use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
-use oxis_curves::{Interpolation, YieldCurve as CurveCore};
-use oxis_greeks::analytic_greeks;
-use oxis_ml::{
+use oxis_lib::bonds::{Cashflow, FixedRateBond as BondCore};
+use oxis_lib::core::{EuropeanOption, ExerciseStyle, MarketData, OptionType};
+use oxis_lib::curves::{Interpolation, YieldCurve as CurveCore};
+use oxis_lib::greeks::analytic_greeks;
+use oxis_lib::ml::{
     AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price, dos_price,
 };
-use oxis_portfolio::{
+use oxis_lib::portfolio::{
     Holding, covariance_matrix as cov_matrix_core, efficient_frontier_point,
     min_variance_weights as min_var_core, mwr as mwr_core, portfolio_risk as portfolio_risk_core,
     tangency_weights as tangency_core, twr as twr_core, value_holdings,
     weights as alloc_weights_core,
 };
-use oxis_pricing::{
+use oxis_lib::pricing::{
     BarrierType, DEFAULT_STEPS, LookbackStrike, McConfig,
     arithmetic_asian_price as arith_asian_core, barrier_price as barrier_core,
     binomial as binomial_core, black_scholes as bs_core, geometric_asian_price as geo_asian_core,
     implied_volatility as iv_core, lookback_price as lookback_core, lsm_american as lsm_core,
     monte_carlo_european as mc_european_core,
 };
-use oxis_stats::{
+use oxis_lib::stats::{
     SampleKind, StatsRequest, acf as stats_acf, assemble as stats_assemble, beta as stats_beta,
     cornish_fisher_var, historical_es, historical_var, information_ratio,
     jarque_bera as stats_jarque_bera, max_drawdown as stats_max_drawdown, parametric_es,
     parametric_var, sharpe_ratio as stats_sharpe, simple_returns as stats_simple_returns,
     sortino_ratio as stats_sortino, tracking_error as stats_tracking_error,
 };
-use oxis_stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
+use oxis_lib::stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -921,7 +921,7 @@ fn acf(values: Vec<f64>, max_lag: usize) -> PyResult<Vec<f64>> {
 // ----------------------------------------------------------------------------
 
 /// Parse an ISO `YYYY-MM-DD` string into core year/month/day.
-fn parse_iso_date(s: &str) -> PyResult<oxis_core::Date> {
+fn parse_iso_date(s: &str) -> PyResult<oxis_lib::core::Date> {
     let parts: Vec<&str> = s.split('-').collect();
     if parts.len() != 3 {
         return Err(PyValueError::new_err(format!(
@@ -937,7 +937,7 @@ fn parse_iso_date(s: &str) -> PyResult<oxis_core::Date> {
     let d = parts[2]
         .parse::<u8>()
         .map_err(|_| PyValueError::new_err("bad day"))?;
-    oxis_core::Date::new(y, m, d).map_err(|e| PyValueError::new_err(e.to_string()))
+    oxis_lib::core::Date::new(y, m, d).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
 /// Mark-to-market value holdings, returning totals + a per-holding breakdown.

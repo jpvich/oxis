@@ -7,9 +7,9 @@
 //! European contract, 1-D in spot.
 
 use super::CliOptionType;
-use oxis_core::output::render;
-use oxis_core::{MarketData, OxisError, RunContext};
-use oxis_ml::{
+use oxis::core::output::render;
+use oxis::core::{MarketData, OxisError, RunContext};
+use oxis::ml::{
     AmericanMlConfig, BsSpec, TrainConfig, deep_lsm_price, differential_ml_price, dos_price,
 };
 

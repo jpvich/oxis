@@ -1,18 +1,20 @@
 [package]
 name = "oxis"
-version = "0.0.0"
+version = "0.1.0"
 description = "OXIS — Open eXtensible Instruments & Statistics: a validated quantitative-finance library, CLI, and REPL."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+readme = "../../README.md"
+keywords = ["finance", "quant", "options", "pricing", "black-scholes"]
+categories = ["finance", "mathematics", "science", "command-line-utilities"]
 
-# The single front door. `oxis` is both the library facade (re-exports every
-# module crate as `oxis::pricing`, `oxis::ml`, …) and the `oxis` binary. A Rust
-# user adds one dependency (`cargo add oxis`); a CLI user installs one crate
-# (`cargo install oxis`). The internal `oxis-*` crates are dependencies they
-# never name.
+# The single crate. `oxis` is the whole library (every domain is an internal
+# module: `oxis::pricing`, `oxis::ml`, …) plus the `oxis` binary. A Rust user
+# adds one dependency (`cargo add oxis`); a CLI user installs one crate
+# (`cargo install oxis`).
 [lib]
 name = "oxis"
 path = "src/lib.rs"
@@ -30,34 +32,34 @@ workspace = true
 
 [features]
 default = ["cli"]
-# Each module is a feature so a library user can compile only what they need:
+# Each domain module is a feature so a library user compiles only what they need:
 # `oxis = { version = "0.1", default-features = false, features = ["pricing", "ml"] }`.
-pricing = ["dep:oxis-pricing"]
-greeks = ["dep:oxis-greeks", "pricing"]
-curves = ["dep:oxis-curves"]
-bonds = ["dep:oxis-bonds"]
-stochastic = ["dep:oxis-stochastic"]
-stats = ["dep:oxis-stats"]
-portfolio = ["dep:oxis-portfolio"]
-ml = ["dep:oxis-ml", "pricing"]
+# Feature edges mirror the module dependency graph (pricing → stochastic, etc.);
+# the numeric deps (rand/rayon) are pulled in only by the modules that use them.
+pricing = ["stochastic", "dep:rand", "dep:rand_distr", "dep:rayon"]
+greeks = ["pricing"]
+curves = []
+bonds = ["curves"]
+stochastic = ["dep:rand", "dep:rand_distr", "dep:rayon"]
+stats = []
+portfolio = ["stats"]
+ml = ["pricing", "greeks"]
+data = []
 # Everything the library exposes.
 full = ["pricing", "greeks", "curves", "bonds", "stochastic", "stats", "portfolio", "ml"]
 # The CLI/REPL binary: needs every module plus the arg-parsing/line-editing deps.
 cli = ["full", "dep:clap", "dep:anyhow", "dep:reedline", "dep:shlex"]
 
 [dependencies]
-# Core is always present — it is the stable contract every surface builds on.
-oxis-core = { workspace = true }
-# Module crates, re-exported by the facade. Optional so library users pay only
-# for what they enable; the `cli` feature turns them all on for the binary.
-oxis-pricing = { workspace = true, optional = true }
-oxis-greeks = { workspace = true, optional = true }
-oxis-curves = { workspace = true, optional = true }
-oxis-bonds = { workspace = true, optional = true }
-oxis-stochastic = { workspace = true, optional = true }
-oxis-stats = { workspace = true, optional = true }
-oxis-portfolio = { workspace = true, optional = true }
-oxis-ml = { workspace = true, optional = true }
+# Always present — the `core` module is the stable contract every surface builds on.
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# Numeric deps used by the pricing/stochastic/ml modules only; optional so a
+# library user enabling e.g. just `stats` does not compile them.
+rand = { workspace = true, optional = true }
+rand_distr = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
 # CLI/REPL-only dependencies, gated behind the `cli` feature.
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }

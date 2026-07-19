@@ -1,12 +1,12 @@
 //! The `oxis` command-line interface (Ring 1).
 //!
 //! A thin edge over the pure module cores: it parses args, builds plain inputs,
-//! calls the core, and renders the result through [`oxis_core::output`]. Global
+//! calls the core, and renders the result through [`oxis::core::output`]. Global
 //! flags select the output format; per-command flags carry the inputs.
 //!
 //! Running `oxis` with no subcommand opens the interactive [`repl`]; with a
 //! subcommand it parses, dispatches to the matching module core, and renders the
-//! result through [`oxis_core::output`].
+//! result through [`oxis::core::output`].
 
 #![forbid(unsafe_code)]
 
@@ -15,7 +15,7 @@ mod repl;
 
 use clap::Parser;
 use commands::Command;
-use oxis_core::{OutputFormat, RunContext};
+use oxis::core::{OutputFormat, RunContext};
 use std::process::ExitCode;
 
 #[derive(Parser)]

@@ -18,13 +18,9 @@ crate-type = ["cdylib"]
 workspace = true
 
 [dependencies]
-oxis-core = { workspace = true }
-oxis-pricing = { workspace = true }
-oxis-greeks = { workspace = true }
-oxis-curves = { workspace = true }
-oxis-bonds = { workspace = true }
-oxis-stochastic = { workspace = true }
-oxis-stats = { workspace = true }
-oxis-portfolio = { workspace = true }
-oxis-ml = { workspace = true }
+# The single `oxis` crate provides every domain as a module. The bindings are a
+# thin wrapper over its pure cores, so the library (not the CLI) is enough.
+# Imported as `oxis_lib` because this crate's own extension module is also named
+# `oxis` (see `[lib]`), so the dependency needs a distinct in-crate name.
+oxis_lib = { package = "oxis", path = "../crates/oxis", default-features = false, features = ["full"] }
 pyo3 = { workspace = true, features = ["extension-module"] }

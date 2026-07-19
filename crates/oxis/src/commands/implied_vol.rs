@@ -2,9 +2,9 @@
 //! reproduces an observed market price.
 
 use super::CliOptionType;
-use oxis_core::output::render;
-use oxis_core::{EuropeanOption, MarketData, OptionType, RunContext};
-use oxis_pricing::{ImpliedVolResult, implied_volatility};
+use oxis::core::output::render;
+use oxis::core::{EuropeanOption, MarketData, OptionType, RunContext};
+use oxis::pricing::{ImpliedVolResult, implied_volatility};
 
 /// Flags for `oxis implied-vol`. Note there is no `--vol`: volatility is the
 /// unknown being solved for; `--price` is the observed market price.

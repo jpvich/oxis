@@ -7,13 +7,13 @@
 //! Monte Carlo standard error in the result.
 
 use super::CliOptionType;
-use oxis_core::output::render;
-use oxis_core::{EuropeanOption, MarketData, OptionType, OxisError, RunContext};
-use oxis_pricing::{
+use oxis::core::output::render;
+use oxis::core::{EuropeanOption, MarketData, OptionType, OxisError, RunContext};
+use oxis::pricing::{
     BarrierType, ExoticResult, LookbackStrike, arithmetic_asian_price, barrier_price,
     geometric_asian_price, lookback_price,
 };
-use oxis_stochastic::SimConfig;
+use oxis::stochastic::SimConfig;
 
 /// Exotic family (`--kind`).
 #[derive(Clone, Copy, PartialEq, clap::ValueEnum)]

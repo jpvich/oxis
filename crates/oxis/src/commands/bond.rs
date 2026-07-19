@@ -6,10 +6,10 @@
 //! yield-to-maturity, then duration + convexity), or `--flat-rate` (discount on a
 //! flat continuous yield curve). Exactly one mode must be given.
 
-use oxis_bonds::{BondResult, FixedRateBond};
-use oxis_core::output::render;
-use oxis_core::{OxisError, RunContext};
-use oxis_curves::YieldCurve;
+use oxis::bonds::{BondResult, FixedRateBond};
+use oxis::core::output::render;
+use oxis::core::{OxisError, RunContext};
+use oxis::curves::YieldCurve;
 
 /// Flags for `oxis bond`.
 ///
