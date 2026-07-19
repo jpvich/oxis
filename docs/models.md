@@ -12,44 +12,44 @@ QuantLib/closed-form test exists in CI at the stated tolerance).
 
 | Model | Crate | Method | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| Black-Scholes European | `oxis-pricing` | BSM closed-form (continuous dividend) | QuantLib `AnalyticEuropeanEngine` (1.42.1, 22 cases) | ≤ 1e-10 (max 2.5e-14) | **validated** |
-| Binomial (European) | `oxis-pricing` | Cox-Ross-Rubinstein tree (equal-jumps) | QuantLib `BinomialVanillaEngine` (CRR), N=256 + BS limit | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
-| Binomial (American) | `oxis-pricing` | CRR tree + early-exercise check | QuantLib `BinomialVanillaEngine` (CRR), N=256 | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
-| Monte Carlo (European) | `oxis-pricing` | GBM terminal simulation, antithetic variates, + SE | Black-Scholes (QuantLib-validated), 22 cases | ≤ 4 standard errors (worst ~1.7σ) | **validated** |
-| Longstaff-Schwartz (American) | `oxis-pricing` | LSM regression (`{1, S/K, (S/K)²}`) on ITM paths, antithetic | QuantLib `MCAmericanEngine` (LSM) + binomial, 22 cases | ≤ 5 combined SE + 0.05 vs QuantLib; ≤ 5 SE + 2.5% vs binomial | **validated** |
-| Analytic Greeks | `oxis-greeks` | Closed-form BSM derivatives | QuantLib `AnalyticEuropeanEngine` Greeks (22 cases ×5) | ≤ 1e-8 (max 1.0e-13) | **validated** |
-| Finite-difference Greeks | `oxis-greeks` | Central differences (bump: spot 1e-4 rel; vol/rate/time 1e-4 abs) | analytic Greeks (agree ≤1e-4) | documented | **implemented** |
-| Implied volatility | `oxis-pricing` | Newton-Raphson on vega + Brent fallback | round-trip + QuantLib `impliedVolatility` (22 cases) | ≤ 1e-6 (max 1.2e-11) | **validated** |
+| Black-Scholes European | `oxis::pricing` | BSM closed-form (continuous dividend) | QuantLib `AnalyticEuropeanEngine` (1.42.1, 22 cases) | ≤ 1e-10 (max 2.5e-14) | **validated** |
+| Binomial (European) | `oxis::pricing` | Cox-Ross-Rubinstein tree (equal-jumps) | QuantLib `BinomialVanillaEngine` (CRR), N=256 + BS limit | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
+| Binomial (American) | `oxis::pricing` | CRR tree + early-exercise check | QuantLib `BinomialVanillaEngine` (CRR), N=256 | ≤ 1e-6 @ matched steps (max 1.1e-10) | **validated** |
+| Monte Carlo (European) | `oxis::pricing` | GBM terminal simulation, antithetic variates, + SE | Black-Scholes (QuantLib-validated), 22 cases | ≤ 4 standard errors (worst ~1.7σ) | **validated** |
+| Longstaff-Schwartz (American) | `oxis::pricing` | LSM regression (`{1, S/K, (S/K)²}`) on ITM paths, antithetic | QuantLib `MCAmericanEngine` (LSM) + binomial, 22 cases | ≤ 5 combined SE + 0.05 vs QuantLib; ≤ 5 SE + 2.5% vs binomial | **validated** |
+| Analytic Greeks | `oxis::greeks` | Closed-form BSM derivatives | QuantLib `AnalyticEuropeanEngine` Greeks (22 cases ×5) | ≤ 1e-8 (max 1.0e-13) | **validated** |
+| Finite-difference Greeks | `oxis::greeks` | Central differences (bump: spot 1e-4 rel; vol/rate/time 1e-4 abs) | analytic Greeks (agree ≤1e-4) | documented | **implemented** |
+| Implied volatility | `oxis::pricing` | Newton-Raphson on vega + Brent fallback | round-trip + QuantLib `impliedVolatility` (22 cases) | ≤ 1e-6 (max 1.2e-11) | **validated** |
 
 ## Ring 2 — term structures
 
 | Model | Crate | Method | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| Yield curve / term structure | `oxis-curves` | interpolated discount/zero/forward — linear (zero rates), log-linear (discount factors), natural cubic (zero rates) | QuantLib `ZeroCurve` / `DiscountCurve` / `NaturalCubicZeroCurve` (1.42.1, 51 queries) | ≤ 1e-10 (max ~4.3e-16) | **validated** |
-| Fixed-rate bond | `oxis-bonds` | cashflow PV (flat yield compounded@freq, or curve discounting); YTM (Brent); Macaulay/modified duration; convexity | QuantLib `FixedRateBond` / `BondFunctions` (1.42.1, 11 bonds) | ≤ 1e-8 (max ~9.5e-9) | **validated** |
-| Barrier option (8 single-barrier types) | `oxis-pricing` | Reiner-Rubinstein closed form, continuous monitoring, zero rebate (`out = vanilla − in`) | QuantLib `AnalyticBarrierEngine` (1.42.1, 12 cases) | ≤ 1e-8 (max ~2.5e-14) | **validated** |
-| Lookback option (fixed & floating strike) | `oxis-pricing` | continuous closed form — Goldman-Sosin-Gatto (floating) / Conze-Viswanathan (fixed), fresh issue (extremum = spot) | QuantLib `AnalyticContinuous{Floating,Fixed}LookbackEngine` (1.42.1, 8 cases) | ≤ 1e-8 (max ~2.1e-14) | **validated** |
-| Asian option — geometric average | `oxis-pricing` | Kemna-Vorst closed form (vol `σ/√3`, carry `½(b−σ²/6)`), continuous averaging | QuantLib `AnalyticContinuousGeometricAveragePriceAsianEngine` (1.42.1) | ≤ 1e-8 | **validated** |
-| Asian option — arithmetic average | `oxis-pricing` | Monte Carlo over GBM paths (`oxis-stochastic`), discrete fixings, + SE | QuantLib `MCDiscreteArithmeticAPEngine` (1.42.1) | ≤ 4 combined SE | **validated** |
+| Yield curve / term structure | `oxis::curves` | interpolated discount/zero/forward — linear (zero rates), log-linear (discount factors), natural cubic (zero rates) | QuantLib `ZeroCurve` / `DiscountCurve` / `NaturalCubicZeroCurve` (1.42.1, 51 queries) | ≤ 1e-10 (max ~4.3e-16) | **validated** |
+| Fixed-rate bond | `oxis::bonds` | cashflow PV (flat yield compounded@freq, or curve discounting); YTM (Brent); Macaulay/modified duration; convexity | QuantLib `FixedRateBond` / `BondFunctions` (1.42.1, 11 bonds) | ≤ 1e-8 (max ~9.5e-9) | **validated** |
+| Barrier option (8 single-barrier types) | `oxis::pricing` | Reiner-Rubinstein closed form, continuous monitoring, zero rebate (`out = vanilla − in`) | QuantLib `AnalyticBarrierEngine` (1.42.1, 12 cases) | ≤ 1e-8 (max ~2.5e-14) | **validated** |
+| Lookback option (fixed & floating strike) | `oxis::pricing` | continuous closed form — Goldman-Sosin-Gatto (floating) / Conze-Viswanathan (fixed), fresh issue (extremum = spot) | QuantLib `AnalyticContinuous{Floating,Fixed}LookbackEngine` (1.42.1, 8 cases) | ≤ 1e-8 (max ~2.1e-14) | **validated** |
+| Asian option — geometric average | `oxis::pricing` | Kemna-Vorst closed form (vol `σ/√3`, carry `½(b−σ²/6)`), continuous averaging | QuantLib `AnalyticContinuousGeometricAveragePriceAsianEngine` (1.42.1) | ≤ 1e-8 | **validated** |
+| Asian option — arithmetic average | `oxis::pricing` | Monte Carlo over GBM paths (`oxis::stochastic`), discrete fixings, + SE | QuantLib `MCDiscreteArithmeticAPEngine` (1.42.1) | ≤ 4 combined SE | **validated** |
 
 ## Ring 2 — stochastic processes
 
-`oxis-stochastic` is a pure path-generation primitive (no pricing inside it) that
-`oxis-pricing` consumes for path-dependent exotics, and the later ML / portfolio
+`oxis::stochastic` is a pure path-generation primitive (no pricing inside it) that
+`oxis::pricing` consumes for path-dependent exotics, and the later ML / portfolio
 rings will consume for training / scenario simulation. A simulator has no "price"
 to validate, so the oracle is the **closed-form terminal moment** of each process.
 
 | Process | Crate | Scheme | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| Geometric Brownian motion | `oxis-stochastic` | exact log-Euler | closed-form lognormal mean/variance | ≤ ~4 SE (mean) / rel. band (std) | **validated** |
-| Ornstein-Uhlenbeck / Vasicek | `oxis-stochastic` | exact Gaussian transition | closed-form OU mean/variance | ≤ ~4 SE / rel. band | **validated** |
-| Cox-Ingersoll-Ross | `oxis-stochastic` | full-truncation Euler | closed-form CIR mean/variance | ≤ ~5 SE / rel. band | **validated** |
-| Merton jump-diffusion | `oxis-stochastic` | exact diffusion + compound-Poisson jumps | closed-form mean/variance | ≤ ~5 SE / rel. band | **validated** |
-| Heston stochastic vol | `oxis-stochastic` | full-truncation Euler (correlated) | mean `S₀e^{μt}`; European price vs QuantLib `AnalyticHestonEngine` | mean rel. band; price ≤ 5 SE + 0.15 | **validated** |
+| Geometric Brownian motion | `oxis::stochastic` | exact log-Euler | closed-form lognormal mean/variance | ≤ ~4 SE (mean) / rel. band (std) | **validated** |
+| Ornstein-Uhlenbeck / Vasicek | `oxis::stochastic` | exact Gaussian transition | closed-form OU mean/variance | ≤ ~4 SE / rel. band | **validated** |
+| Cox-Ingersoll-Ross | `oxis::stochastic` | full-truncation Euler | closed-form CIR mean/variance | ≤ ~5 SE / rel. band | **validated** |
+| Merton jump-diffusion | `oxis::stochastic` | exact diffusion + compound-Poisson jumps | closed-form mean/variance | ≤ ~5 SE / rel. band | **validated** |
+| Heston stochastic vol | `oxis::stochastic` | full-truncation Euler (correlated) | mean `S₀e^{μt}`; European price vs QuantLib `AnalyticHestonEngine` | mean rel. band; price ≤ 5 SE + 0.15 | **validated** |
 
 ## Ring 3 — statistics & risk
 
-`oxis-stats` is a pure-compute module of descriptive, risk, performance, and
+`oxis::stats` is a pure-compute module of descriptive, risk, performance, and
 relational statistics over return / price series, consumed by the later portfolio
 and ML rings. QuantLib has thin coverage here, so the oracle is **numpy / scipy /
 pandas** (industry-standard, closed-form where applicable) — all moments are
@@ -59,18 +59,18 @@ returns).
 
 | Family | Crate | Method | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| Descriptive moments | `oxis-stats` | mean, population variance/std, biased skew, Fisher excess kurtosis | `numpy.var(ddof=0)` / `scipy.stats.skew,kurtosis(bias=True)` | ≤ 1e-10 (max ~1.8e-15) | **validated** |
-| Returns & volatility | `oxis-stats` | simple/log/cumulative returns, geometric annualized return, annualized vol | numpy closed form | ≤ 1e-10 | **validated** |
-| Risk-adjusted ratios | `oxis-stats` | Sharpe, Sortino (downside dev vs MAR, full-`n`), Calmar | numpy closed form | ≤ 1e-10 | **validated** |
-| Drawdown | `oxis-stats` | running-peak max drawdown + duration | numpy reference | exact (duration) / ≤ 1e-10 | **validated** |
-| VaR / Expected Shortfall | `oxis-stats` | historical (numpy-linear quantile), parametric Gaussian, Cornish-Fisher | `numpy.quantile` / `scipy.stats.norm` | ≤ 1e-10 | **validated** |
-| Relational & active-return | `oxis-stats` | covariance, correlation, beta, tracking error, information ratio | `numpy.cov(bias=True)` / `corrcoef` | ≤ 1e-10 | **validated** |
-| Autocorrelation | `oxis-stats` | biased ACF (mean-centered, full denom), lags 1–5 | numpy reference | ≤ 1e-10 | **validated** |
-| Jarque-Bera | `oxis-stats` | `n/6·(S² + K²/4)`, χ²₂ p-value `exp(−JB/2)` | `scipy.stats.jarque_bera` | stat ≤ 1e-10; p-value ≤ 1e-7 | **validated** |
+| Descriptive moments | `oxis::stats` | mean, population variance/std, biased skew, Fisher excess kurtosis | `numpy.var(ddof=0)` / `scipy.stats.skew,kurtosis(bias=True)` | ≤ 1e-10 (max ~1.8e-15) | **validated** |
+| Returns & volatility | `oxis::stats` | simple/log/cumulative returns, geometric annualized return, annualized vol | numpy closed form | ≤ 1e-10 | **validated** |
+| Risk-adjusted ratios | `oxis::stats` | Sharpe, Sortino (downside dev vs MAR, full-`n`), Calmar | numpy closed form | ≤ 1e-10 | **validated** |
+| Drawdown | `oxis::stats` | running-peak max drawdown + duration | numpy reference | exact (duration) / ≤ 1e-10 | **validated** |
+| VaR / Expected Shortfall | `oxis::stats` | historical (numpy-linear quantile), parametric Gaussian, Cornish-Fisher | `numpy.quantile` / `scipy.stats.norm` | ≤ 1e-10 | **validated** |
+| Relational & active-return | `oxis::stats` | covariance, correlation, beta, tracking error, information ratio | `numpy.cov(bias=True)` / `corrcoef` | ≤ 1e-10 | **validated** |
+| Autocorrelation | `oxis::stats` | biased ACF (mean-centered, full denom), lags 1–5 | numpy reference | ≤ 1e-10 | **validated** |
+| Jarque-Bera | `oxis::stats` | `n/6·(S² + K²/4)`, χ²₂ p-value `exp(−JB/2)` | `scipy.stats.jarque_bera` | stat ≤ 1e-10; p-value ≤ 1e-7 | **validated** |
 
 ## Ring 3 — portfolio analytics
 
-`oxis-portfolio` is the first **aggregate** module: it consumes `oxis-stats`
+`oxis::portfolio` is the first **aggregate** module: it consumes `oxis::stats`
 (covariance, VaR) and the core's linear-algebra solver to value holdings and
 compute performance, allocation, risk, and Markowitz optimization. It is pure and
 sync — it operates on price/return records passed in, not a live data source.
@@ -83,25 +83,25 @@ Oracle = numpy/scipy: matrix algebra via `np.linalg.solve`, IRR via
 
 | Family | Crate | Method | Reference | Tolerance | Status |
 |---|---|---|---|---|---|
-| Holdings valuation | `oxis-portfolio` | lot-tracked cost basis, mark-to-market value, unrealized P&L, weight | numpy closed form | ≤ 1e-10 | **validated** |
-| Time-weighted return | `oxis-portfolio` | geometric linking of sub-period returns `Vᵢ/(Vᵢ₋₁+flowᵢ)−1` | numpy `np.prod` | ≤ 1e-10 | **validated** |
-| Money-weighted return (IRR) | `oxis-portfolio` | root of Act/365 NPV `Σcf/(1+r)^t` via Brent | `scipy.optimize.brentq` | ≤ 1e-9 | **validated** |
-| Allocation weights | `oxis-portfolio` | `mvᵢ/Σmv` | numpy | ≤ 1e-10 | **validated** |
-| Risk aggregation | `oxis-portfolio` | population covariance matrix, `wᵀΣw` vol, portfolio VaR (reuses `oxis-stats`) | `np.cov(bias=True)`, `np.quantile`, `scipy.stats.norm` | ≤ 1e-10 | **validated** |
-| Markowitz optimization | `oxis-portfolio` | unconstrained closed form — min-variance / tangency / efficient-frontier via `Σ⁻¹` (solved, shorting allowed) | `numpy.linalg.solve` | ≤ 1e-10 (max ~8.7e-16) | **validated** |
+| Holdings valuation | `oxis::portfolio` | lot-tracked cost basis, mark-to-market value, unrealized P&L, weight | numpy closed form | ≤ 1e-10 | **validated** |
+| Time-weighted return | `oxis::portfolio` | geometric linking of sub-period returns `Vᵢ/(Vᵢ₋₁+flowᵢ)−1` | numpy `np.prod` | ≤ 1e-10 | **validated** |
+| Money-weighted return (IRR) | `oxis::portfolio` | root of Act/365 NPV `Σcf/(1+r)^t` via Brent | `scipy.optimize.brentq` | ≤ 1e-9 | **validated** |
+| Allocation weights | `oxis::portfolio` | `mvᵢ/Σmv` | numpy | ≤ 1e-10 | **validated** |
+| Risk aggregation | `oxis::portfolio` | population covariance matrix, `wᵀΣw` vol, portfolio VaR (reuses `oxis::stats`) | `np.cov(bias=True)`, `np.quantile`, `scipy.stats.norm` | ≤ 1e-10 | **validated** |
+| Markowitz optimization | `oxis::portfolio` | unconstrained closed form — min-variance / tangency / efficient-frontier via `Σ⁻¹` (solved, shorting allowed) | `numpy.linalg.solve` | ≤ 1e-10 (max ~8.7e-16) | **validated** |
 
 ## Ring 4 — machine-learning pricing
 
-`oxis-ml` is the OXIS differentiator: validated ML pricing, **hand-rolled with no
+`oxis::ml` is the OXIS differentiator: validated ML pricing, **hand-rolled with no
 ML framework** (`candle`/`burn`/`tch`), so the binary stays portable and every
 number is auditable. The first model is **Differential Machine Learning** (Huge &
 Savine, 2020): a *twin network* — a softplus MLP whose forward pass predicts an
 option's price and whose backprop pass predicts its delta — trained on simulated
 payoffs *and* their pathwise differentials. The network, its twin (input-gradient)
 pass, and the doubled-network training gradient are plain linear algebra over
-`oxis-core`; training is Adam with a one-cycle schedule and is bit-reproducible for
+`oxis::core`; training is Adam with a one-cycle schedule and is bit-reproducible for
 a fixed seed. Inference is **Kind A** (pure compute); it sits on top of the
-classical engines (`oxis-pricing`, `oxis-greeks`) so its accuracy is measured
+classical engines (`oxis::pricing`, `oxis::greeks`) so its accuracy is measured
 against a trusted baseline.
 
 **Validation contract — two layers.** An ML model is an *approximation* and will
@@ -116,10 +116,10 @@ test vs a trusted baseline") is preserved by splitting the test:
 
 | Family | Crate | Method | Reference | Tolerance / band | Status |
 |---|---|---|---|---|---|
-| Network inference | `oxis-ml` | softplus MLP forward value + twin input-gradient (hand-rolled) | numpy forward/backprop on fixed weights | ≤ 1e-12 | **validated** |
-| Differential-ML pricing (European, 1-D spot) | `oxis-ml` | twin network trained on pathwise payoff + differential labels; price + delta | Black-Scholes price/delta over an `[80,120]` spot grid | price max-abs ≤ 1.5 / RMSE ≤ 1.0; delta max-abs ≤ 0.10 / RMSE ≤ 0.06 (observed ~0.63/0.45, ~0.046/0.029) | **validated** |
-| Deep LSM (American put, 1-D spot) | `oxis-ml` | Longstaff-Schwartz with a per-date neural continuation regression (a fresh softplus MLP of `S/K` per exercise date replaces the `{1, S/K, (S/K)²}` polynomial; same ITM-only regression, antithetic pairs, and per-pair seeding) | QuantLib CRR American tree (2000 steps) over a `{90,100,110}` spot grid | `\|price − binomial\| ≤ 5·SE + 0.40` (observed `\|Δ\|` ~0.21–0.23, SE ~0.09–0.12; gap dominated by the 10-step Bermudan-vs-American exercise discretization, which classical LSM shares) | **validated** |
-| Deep Optimal Stopping (American put, 1-D spot) | `oxis-ml` | Becker–Cheridito–Jentzen (2019): a per-date stop-probability network `F_n = sigmoid(net(S/K))`, trained backward by gradient ascent on the expected discounted payoff; the learned hard policy is evaluated out-of-sample on fresh paths | QuantLib CRR American tree (2000 steps) over a `{90,100,110}` spot grid | `\|price − binomial\| ≤ 5·SE + 0.60` (observed `\|Δ\|` ~0.23–0.47, SE ~0.09–0.13) | **validated** |
+| Network inference | `oxis::ml` | softplus MLP forward value + twin input-gradient (hand-rolled) | numpy forward/backprop on fixed weights | ≤ 1e-12 | **validated** |
+| Differential-ML pricing (European, 1-D spot) | `oxis::ml` | twin network trained on pathwise payoff + differential labels; price + delta | Black-Scholes price/delta over an `[80,120]` spot grid | price max-abs ≤ 1.5 / RMSE ≤ 1.0; delta max-abs ≤ 0.10 / RMSE ≤ 0.06 (observed ~0.63/0.45, ~0.046/0.029) | **validated** |
+| Deep LSM (American put, 1-D spot) | `oxis::ml` | Longstaff-Schwartz with a per-date neural continuation regression (a fresh softplus MLP of `S/K` per exercise date replaces the `{1, S/K, (S/K)²}` polynomial; same ITM-only regression, antithetic pairs, and per-pair seeding) | QuantLib CRR American tree (2000 steps) over a `{90,100,110}` spot grid | `\|price − binomial\| ≤ 5·SE + 0.40` (observed `\|Δ\|` ~0.21–0.23, SE ~0.09–0.12; gap dominated by the 10-step Bermudan-vs-American exercise discretization, which classical LSM shares) | **validated** |
+| Deep Optimal Stopping (American put, 1-D spot) | `oxis::ml` | Becker–Cheridito–Jentzen (2019): a per-date stop-probability network `F_n = sigmoid(net(S/K))`, trained backward by gradient ascent on the expected discounted payoff; the learned hard policy is evaluated out-of-sample on fresh paths | QuantLib CRR American tree (2000 steps) over a `{90,100,110}` spot grid | `\|price − binomial\| ≤ 5·SE + 0.60` (observed `\|Δ\|` ~0.23–0.47, SE ~0.09–0.13) | **validated** |
 
 **Deep LSM.** The estimate is low-biased exactly like classical Longstaff-Schwartz,
 so the trusted-baseline contract is a band against the QuantLib-validated binomial
@@ -147,11 +147,11 @@ GPU backend are deferred to later Ring-4 milestones.
 
 | Primitive | Crate | Method | Reference | Status |
 |---|---|---|---|---|
-| Normal CDF / PDF | `oxis-core` | high-accuracy `erf`/`erfc`-based (~1e-15) | known values (unit-tested) + cross-checked through Black-Scholes (≤2.5e-14 vs QuantLib) | **validated** |
-| Polynomial least-squares | `oxis-core` | normal equations + Gaussian elimination (LSM regression) | known polynomials (unit-tested) | **implemented** |
-| Linear solve / matrix inverse | `oxis-core` | dense Gaussian elimination + partial pivoting (`solve_linear_system`, `invert`); shared by LSM regression and Markowitz | known systems (unit-tested) + cross-checked through Markowitz (≤1e-10 vs `numpy.linalg.solve`) | **validated** |
-| 1-D interpolation | `oxis-core` | piecewise-linear + natural cubic spline (tridiagonal solve) | known functions (unit-tested) + cross-checked through yield curves (≤1e-10 vs QuantLib) | **validated** |
-| Day-count year fraction | `oxis-core` | Act/365, Act/360, 30/360 (US) | hand-checked | **implemented** (unit-tested) |
+| Normal CDF / PDF | `oxis::core` | high-accuracy `erf`/`erfc`-based (~1e-15) | known values (unit-tested) + cross-checked through Black-Scholes (≤2.5e-14 vs QuantLib) | **validated** |
+| Polynomial least-squares | `oxis::core` | normal equations + Gaussian elimination (LSM regression) | known polynomials (unit-tested) | **implemented** |
+| Linear solve / matrix inverse | `oxis::core` | dense Gaussian elimination + partial pivoting (`solve_linear_system`, `invert`); shared by LSM regression and Markowitz | known systems (unit-tested) + cross-checked through Markowitz (≤1e-10 vs `numpy.linalg.solve`) | **validated** |
+| 1-D interpolation | `oxis::core` | piecewise-linear + natural cubic spline (tridiagonal solve) | known functions (unit-tested) + cross-checked through yield curves (≤1e-10 vs QuantLib) | **validated** |
+| Day-count year fraction | `oxis::core` | Act/365, Act/360, 30/360 (US) | hand-checked | **implemented** (unit-tested) |
 
 ## Conventions
 
@@ -206,7 +206,7 @@ GPU backend are deferred to later Ring-4 milestones.
   reimplementing calendar/schedule machinery, which is deferred). Yield-to-maturity,
   Macaulay/modified duration, and convexity use **compounding at the coupon
   frequency** `(1 + y/f)^(−f·t)` — the market and QuantLib `Compounded@freq`
-  convention; **curve discounting** (via `oxis-curves`) stays continuous. Prices
+  convention; **curve discounting** (via `oxis::curves`) stays continuous. Prices
   are quoted per face with `clean = dirty − accrued`. Validation settles on a coupon
   date (`accrued = 0`) with a `Thirty360(BondBasis)`, `NullCalendar`, `Unadjusted`
   schedule, so the ergonomic `regular` builder reproduces QuantLib's cashflows
@@ -218,15 +218,15 @@ GPU backend are deferred to later Ring-4 milestones.
   formulas. Lookbacks are priced **freshly issued** — the realized running extremum
   equals the spot at inception, matching QuantLib's `minmax` argument. Asians are
   **average-price** (fixed strike): the geometric average is closed-form (Kemna-Vorst),
-  the arithmetic average is Monte Carlo over `oxis-stochastic` GBM paths with discrete
+  the arithmetic average is Monte Carlo over `oxis::stochastic` GBM paths with discrete
   fixings aligned to QuantLib's (`days = n·step`, so fixing year-fractions are exactly
   `i·T/n`). Average-strike (floating) Asians and discrete-monitoring barriers/lookbacks
   are deferred.
-- **Stochastic processes** live in `oxis-stochastic` with **no pricing inside** them, so
-  downstream rings consume raw paths without depending on `oxis-pricing`. Paths are
+- **Stochastic processes** live in `oxis::stochastic` with **no pricing inside** them, so
+  downstream rings consume raw paths without depending on `oxis::pricing`. Paths are
   **bit-reproducible** for a fixed `(seed, paths, steps)` via the same per-index
   `splitmix64` seeding + antithetic pairing + ordered reduction as the Monte Carlo
-  pricers (the seeding/sample helpers now live in `oxis-core::math`). GBM, OU/Vasicek,
+  pricers (the seeding/sample helpers now live in `oxis::core::math`). GBM, OU/Vasicek,
   and Merton jump-diffusion are **exact in distribution** (no time-discretization bias),
   so their moments match the closed form up to sampling error; CIR and the Heston
   variance use a **full-truncation Euler** scheme (the Feller condition `2κθ ≥ σ²` is

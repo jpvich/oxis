@@ -1,9 +1,9 @@
 //! `oxis greeks` — analytic Black-Scholes Greeks for a European option.
 
 use super::CliOptionType;
-use oxis_core::output::render;
-use oxis_core::{EuropeanOption, MarketData, OptionType, RunContext};
-use oxis_greeks::{GreeksResult, analytic_greeks};
+use oxis::core::output::render;
+use oxis::core::{EuropeanOption, MarketData, OptionType, RunContext};
+use oxis::greeks::{GreeksResult, analytic_greeks};
 
 /// Flags for `oxis greeks`.
 #[derive(clap::Args)]

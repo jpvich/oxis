@@ -7,9 +7,9 @@
 //! error. Monte Carlo also reports a standard error in the result.
 
 use super::CliOptionType;
-use oxis_core::output::render;
-use oxis_core::{EuropeanOption, ExerciseStyle, MarketData, OptionType, OxisError, RunContext};
-use oxis_pricing::{
+use oxis::core::output::render;
+use oxis::core::{EuropeanOption, ExerciseStyle, MarketData, OptionType, OxisError, RunContext};
+use oxis::pricing::{
     DEFAULT_STEPS, McConfig, PriceResult, binomial, black_scholes, lsm_american,
     monte_carlo_european,
 };

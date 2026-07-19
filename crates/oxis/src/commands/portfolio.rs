@@ -5,9 +5,9 @@
 //! `optimize` take N-asset matrices (passed as repeated row flags) and are more
 //! comfortable from the Python API, which accepts lists of lists directly.
 
-use oxis_core::output::render;
-use oxis_core::{Date, OutputFormat, OxisError, RunContext};
-use oxis_portfolio::{
+use oxis::core::output::render;
+use oxis::core::{Date, OutputFormat, OxisError, RunContext};
+use oxis::portfolio::{
     AllocationReport, Holding, PerformanceReport, efficient_frontier_point, min_variance_weights,
     mwr as mwr_core, optimization_report, portfolio_risk, tangency_weights, twr as twr_core,
     value_holdings, weights as alloc_weights,

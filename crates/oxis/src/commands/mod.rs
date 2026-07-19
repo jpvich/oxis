@@ -11,10 +11,10 @@ mod price;
 mod simulate;
 mod stats;
 
-use oxis_core::{OptionType, RunContext};
+use oxis::core::{OptionType, RunContext};
 
 /// Call or put as a CLI value (`--type call|put`), shared by the commands.
-/// Mapped to the core type so `clap` stays out of `oxis-core`.
+/// Mapped to the core type so `clap` stays out of `oxis::core`.
 #[derive(Clone, Copy, clap::ValueEnum)]
 pub(crate) enum CliOptionType {
     Call,

@@ -58,7 +58,7 @@ the foundation of correct prices.
   `CumulativeNormalDistribution` (the normal CDF) and its inverse, plus
   bivariate normal, chi-square, gamma, Student-t, Poisson, binomial. **OXIS
   copies the normal CDF/PDF** (high-accuracy `erf`-based) — already implemented
-  in `oxis-core::math` and cross-checked to ~1e-14 through Black-Scholes.
+  in `oxis::core::math` and cross-checked to ~1e-14 through Black-Scholes.
 - `math/solvers1d/` — root finders: `brent`, `newton`, `newtonsafe`,
   `bisection`, `ridder`, `secant`, `falseposition`, `halley`. **OXIS copies
   Newton + Brent** (needed for implied vol, M2).
@@ -72,7 +72,7 @@ the foundation of correct prices.
   Monte Carlo (M2).
 - `math/matrix`, `math/integrals`, `math/copulas`, `math/statistics` — linear
   algebra, quadrature, copulas, incremental statistics. **OXIS adapts** the
-  statistics pieces in `oxis-stats` (Ring 3); copulas/quadrature deferred.
+  statistics pieces in `oxis::stats` (Ring 3); copulas/quadrature deferred.
 
 ### 2.2 `methods/` — numerical methods (copy MC + lattices)
 
@@ -109,7 +109,7 @@ of "contract" from "method", far less machinery. The engine catalog tells us
 `time/date.hpp`, `daycounters/`, `calendar.hpp` + `calendars/` (dozens of
 national calendars), `schedule.hpp`, `period.hpp`. **OXIS has copied the
 essentials**: a validated `Date` (proleptic Gregorian, serial arithmetic) and
-`DayCount` (Act/365, Act/360, 30/360) in `oxis-core::types`. Business-day
+`DayCount` (Act/365, Act/360, 30/360) in `oxis::core::types`. Business-day
 calendars and schedules are **deferred** to Ring 2 (needed for fixed income, not
 for vanilla options).
 
@@ -148,8 +148,8 @@ source of bugs in concurrent/served contexts. OXIS makes time an explicit input
 
 | QuantLib subsystem | Copy | Adapt | Defer | Skip | Notes |
 |---|:--:|:--:|:--:|:--:|---|
-| Normal CDF/PDF & special functions | ● | | | | done in `oxis-core::math` |
-| 1-D root finders (Newton/Brent) | ● | | | | **done** in `oxis-core::math::solvers` (M2a) |
+| Normal CDF/PDF & special functions | ● | | | | done in `oxis::core::math` |
+| 1-D root finders (Newton/Brent) | ● | | | | **done** in `oxis::core::math::solvers` (M2a) |
 | Interpolation (linear/cubic) | ● | | | | Ring 2 (curves) |
 | Optimization (LM/BFGS/...) | | | ● | | calibration + portfolio opt |
 | RNGs (MT/Sobol) | ● | | | | **`rand` SmallRng done** (M2b, counter-seeded for determinism); Sobol later |
@@ -163,7 +163,7 @@ source of bugs in concurrent/served contexts. OXIS makes time an explicit input
 | Term structures / bootstrapping | | | ● | | Ring 2 |
 | Cashflows / bonds / swaps | | | ● | | Ring 2 (fixed income) |
 | Calibratable models | | | ● | | Ring 2+ |
-| Date & day-count | | ● | | | done in `oxis-core::types` |
+| Date & day-count | | ● | | | done in `oxis::core::types` |
 | Calendars & schedules | | | ● | | Ring 2 |
 | Currency / Money | | ● | | | minimal version done |
 | Observable/Observer web | | | | ● | pure functions instead |
@@ -182,7 +182,7 @@ than "QuantLib in Rust" (tracked in `docs/parity.md`):
 - **Validation as a first-class deliverable.** QuantLib *is* the reference; it
   has a test suite but no notion of "every model ships with a cross-check
   against an independent oracle at a documented tolerance." OXIS makes that the
-  merge gate (see `validation/` and `crates/oxis-pricing/tests/validation_tests.rs`).
+  merge gate (see `validation/` and `crates/oxis/tests/pricing_validation_tests.rs`).
 - **One pure core, four interfaces.** The same I/O-free functions back the Rust
   crate, the `oxis` CLI, the PyO3 Python module, and (later) the REPL. QuantLib's
   Python comes via SWIG over the stateful C++ object graph.

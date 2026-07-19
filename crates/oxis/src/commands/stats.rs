@@ -7,9 +7,9 @@
 //! covariance, tracking error, and information ratio; metrics whose inputs are
 //! absent render as empty / `null`.
 
-use oxis_core::output::render;
-use oxis_core::{OxisError, RunContext};
-use oxis_stats::{SampleKind, StatsRequest, assemble, simple_returns};
+use oxis::core::output::render;
+use oxis::core::{OxisError, RunContext};
+use oxis::stats::{SampleKind, StatsRequest, assemble, simple_returns};
 
 /// Flags for `oxis stats`.
 ///

@@ -499,140 +499,26 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "oxis"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "oxis-bonds",
- "oxis-core",
- "oxis-curves",
- "oxis-greeks",
- "oxis-ml",
- "oxis-portfolio",
- "oxis-pricing",
- "oxis-stats",
- "oxis-stochastic",
+ "rand",
+ "rand_distr",
+ "rayon",
  "reedline",
+ "serde",
+ "serde_json",
  "shlex 1.3.0",
-]
-
-[[package]]
-name = "oxis-bonds"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "oxis-curves",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-core"
-version = "0.0.0"
-dependencies = [
- "serde",
- "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "oxis-curves"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-data"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
-]
-
-[[package]]
-name = "oxis-greeks"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "oxis-pricing",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-ml"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "oxis-greeks",
- "oxis-pricing",
- "rand",
- "rand_distr",
- "rayon",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-portfolio"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "oxis-stats",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-pricing"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "oxis-stochastic",
- "rand",
- "rand_distr",
- "rayon",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "oxis-python"
 version = "0.0.0"
 dependencies = [
- "oxis-bonds",
- "oxis-core",
- "oxis-curves",
- "oxis-greeks",
- "oxis-ml",
- "oxis-portfolio",
- "oxis-pricing",
- "oxis-stats",
- "oxis-stochastic",
+ "oxis",
  "pyo3",
-]
-
-[[package]]
-name = "oxis-stats"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "oxis-stochastic"
-version = "0.0.0"
-dependencies = [
- "oxis-core",
- "rand",
- "rand_distr",
- "rayon",
- "serde",
- "serde_json",
 ]
 
 [[package]]

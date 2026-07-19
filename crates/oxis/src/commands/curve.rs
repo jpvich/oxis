@@ -6,9 +6,9 @@
 //! factor and zero rate at `--at`, and — if `--forward-to` is given — the forward
 //! rate from `--at` to that time.
 
-use oxis_core::output::render;
-use oxis_core::{OxisError, RunContext};
-use oxis_curves::{Interpolation, YieldCurve};
+use oxis::core::output::render;
+use oxis::core::{OxisError, RunContext};
+use oxis::curves::{Interpolation, YieldCurve};
 
 /// Interpolation scheme (`--interp`).
 #[derive(Clone, Copy, clap::ValueEnum)]

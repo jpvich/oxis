@@ -53,10 +53,16 @@ Per-model method and validation status live in [`docs/models.md`](docs/models.md
 
 ## Install / build
 
-OXIS is not yet published to crates.io / PyPI; build from source. Everything
-lives behind a **single `oxis` crate** — the library facade, the CLI, and the
-REPL are one package. The internal `oxis-*` crates are an implementation detail
-you never name.
+OXIS is a **single `oxis` crate** — the library, the CLI, and the REPL are one
+package, and every domain is an internal module (`oxis::pricing`, `oxis::ml`, …).
+
+Not yet published to crates.io / PyPI. Until the first release, depend on it
+straight from git, or build from source:
+
+```toml
+# Cargo.toml — track the repo until the crates.io release:
+oxis = { git = "https://github.com/jpvich/oxis" }
+```
 
 ```bash
 # Rust workspace

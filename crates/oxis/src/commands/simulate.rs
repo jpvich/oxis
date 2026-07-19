@@ -5,9 +5,9 @@
 //! readout. Parameters not used by the chosen process are ignored; each has a
 //! sensible default so `oxis simulate --process gbm` runs out of the box.
 
-use oxis_core::output::render;
-use oxis_core::{OxisError, RunContext};
-use oxis_stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
+use oxis::core::output::render;
+use oxis::core::{OxisError, RunContext};
+use oxis::stochastic::{Process, ProcessResult, SimConfig, simulate_terminal};
 
 /// Which process to simulate (`--process`).
 #[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
