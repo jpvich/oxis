@@ -4,44 +4,108 @@
 //! tokenized (quote-aware, via `shlex`), re-parsed by [`crate::Cli`], and
 //! dispatched through [`Command::run`] — so the REPL and the CLI share one parser
 //! and one set of command implementations, with no duplicated logic. The line
-//! editor ([`rustyline`]) supplies history and tab-completion of command names
-//! and their long flags (introspected from clap, so completion never drifts).
+//! editor ([`reedline`]) supplies history and an interactive completion menu (the
+//! `IdeMenu` dropdown, opened with Tab). Completion walks the clap command tree at
+//! the cursor position — top-level commands, then a command's nested subcommands
+//! (e.g. `ml american`), then that command's long flags plus the global flags —
+//! so it descends to any depth and never drifts from the real parser, and each
+//! entry carries its clap help text as the dropdown description.
+
+use std::borrow::Cow;
+use std::io::IsTerminal;
 
 use clap::{CommandFactory, Parser};
-use rustyline::completion::{Completer, Pair};
-use rustyline::error::ReadlineError;
-use rustyline::{Editor, Helper, Highlighter, Hinter, Validator};
+use reedline::{
+    Completer, Emacs, IdeMenu, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptEditMode,
+    PromptHistorySearch, PromptHistorySearchStatus, Reedline, ReedlineEvent, ReedlineMenu, Signal,
+    Span, Suggestion, default_emacs_keybindings,
+};
 
 use crate::Cli;
 
-/// Words handled by the REPL itself rather than the clap parser.
-const BUILTINS: &[&str] = &["help", "quit", "exit"];
+/// Name binding the Tab key to the completion dropdown.
+const MENU_NAME: &str = "completion_menu";
 
-/// Block-letter banner shown when the REPL opens.
-const BANNER: &str = r"
-  ██████  ██   ██ ██ ███████
- ██    ██  ██ ██  ██ ██
- ██    ██   ███   ██ ███████
- ██    ██  ██ ██  ██      ██
-  ██████  ██   ██ ██ ███████";
+/// REPL builtins (name + description) handled by the loop rather than clap.
+const BUILTINS: &[(&str, &str)] = &[
+    ("help", "show the command listing"),
+    ("quit", "leave the REPL"),
+    ("exit", "leave the REPL"),
+];
+
+/// Big "OXIS" wordmark (ANSI Shadow style) shown when the REPL opens.
+const LOGO: [&str; 6] = [
+    r"   ██████╗  ██╗  ██╗ ██╗ ███████╗",
+    r"  ██╔═══██╗ ╚██╗██╔╝ ██║ ██╔════╝",
+    r"  ██║   ██║  ╚███╔╝  ██║ ███████╗",
+    r"  ██║   ██║  ██╔██╗  ██║ ╚════██║",
+    r"  ╚██████╔╝ ██╔╝ ██╗ ██║ ███████║",
+    r"   ╚═════╝  ╚═╝  ╚═╝ ╚═╝ ╚══════╝",
+];
+
+/// The re-exported `oxis::<module>` modules, for the live count in the banner.
+const MODULES: &[&str] = &[
+    "pricing",
+    "greeks",
+    "curves",
+    "bonds",
+    "stochastic",
+    "stats",
+    "portfolio",
+    "ml",
+];
+
+/// Repository shown in the banner.
+const REPO: &str = "github.com/jpvich/oxis";
+
+/// ANSI accent/dim/reset codes, or empty strings when color is disabled
+/// (output is not a terminal, or `NO_COLOR` is set) so pipes stay clean.
+fn colors() -> (&'static str, &'static str, &'static str) {
+    let enabled = std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+    if enabled {
+        ("\x1b[1;36m", "\x1b[2m", "\x1b[0m") // bright cyan · dim · reset
+    } else {
+        ("", "", "")
+    }
+}
 
 /// Run the interactive REPL until EOF (Ctrl-D), `quit`, or `exit`.
 pub fn run() -> anyhow::Result<()> {
+    // The REPL drives an interactive line editor; it needs a real terminal.
+    if !std::io::stdin().is_terminal() {
+        anyhow::bail!(
+            "the interactive REPL requires a terminal; pass a subcommand to use oxis non-interactively (see `oxis --help`)"
+        );
+    }
+
     print_banner();
 
-    let helper = ReplHelper::new();
-    let mut editor: Editor<ReplHelper, rustyline::history::DefaultHistory> =
-        Editor::new().map_err(|e| anyhow::anyhow!("could not start REPL: {e}"))?;
-    editor.set_helper(Some(helper));
+    // Tab opens an IDE-style dropdown (a bordered menu under the cursor) and then
+    // moves through it; ↑/↓ navigate, Enter accepts.
+    let menu = Box::new(IdeMenu::default().with_name(MENU_NAME));
+    let mut keybindings = default_emacs_keybindings();
+    keybindings.add_binding(
+        KeyModifiers::NONE,
+        KeyCode::Tab,
+        ReedlineEvent::UntilFound(vec![
+            ReedlineEvent::Menu(MENU_NAME.to_string()),
+            ReedlineEvent::MenuNext,
+        ]),
+    );
+
+    let mut editor = Reedline::create()
+        .with_completer(Box::new(OxisCompleter))
+        .with_menu(ReedlineMenu::EngineCompleter(menu))
+        .with_edit_mode(Box::new(Emacs::new(keybindings)));
+    let prompt = OxisPrompt;
 
     loop {
-        match editor.readline("oxis> ") {
-            Ok(line) => {
+        match editor.read_line(&prompt) {
+            Ok(Signal::Success(line)) => {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
                     continue;
                 }
-                let _ = editor.add_history_entry(trimmed);
                 match trimmed {
                     "quit" | "exit" => break,
                     "help" => {
@@ -51,9 +115,11 @@ pub fn run() -> anyhow::Result<()> {
                     _ => run_line(trimmed),
                 }
             }
-            // Ctrl-C cancels the current line; Ctrl-D / EOF exits.
-            Err(ReadlineError::Interrupted) => continue,
-            Err(ReadlineError::Eof) => break,
+            // Ctrl-C cancels the current line; Ctrl-D exits.
+            Ok(Signal::CtrlC) => continue,
+            Ok(Signal::CtrlD) => break,
+            // `Signal` is non-exhaustive; treat any future variant as a no-op.
+            Ok(_) => continue,
             Err(e) => {
                 eprintln!("error: {e}");
                 break;
@@ -88,16 +154,40 @@ fn run_line(line: &str) {
     }
 }
 
-/// Print the opening banner: block-letter logo, version, and the live command list.
+/// Print the opening banner: big logo, version/build metadata, a one-line value
+/// proposition, live command/module counts, the repo link, and usage hints.
 fn print_banner() {
-    let version = env!("CARGO_PKG_VERSION");
-    println!("{BANNER}");
-    println!("  Open eXtensible Instruments & Statistics · v{version}");
+    let (accent, dim, reset) = colors();
+    let rule = "─".repeat(52);
+
+    for line in LOGO {
+        println!("{accent}{line}{reset}");
+    }
     println!();
-    println!("Interactive REPL — commands are identical to the CLI (without the leading `oxis`).");
-    println!("Type `help`, `<command> --help`, or `quit`. Tab completes commands and flags.");
+    println!("  Open eXtensible Instruments & Statistics");
+    println!("  {dim}{rule}{reset}");
+
+    // Version + build metadata (date and short commit come from build.rs).
+    let mut meta = format!("v{}", env!("CARGO_PKG_VERSION"));
+    let date = env!("OXIS_BUILD_DATE");
+    if !date.is_empty() {
+        meta.push_str(&format!("   ·   built {date}"));
+    }
+    let sha = env!("OXIS_GIT_SHA");
+    if !sha.is_empty() {
+        meta.push_str(&format!("   ·   {sha}"));
+    }
+    println!("  {dim}{meta}{reset}");
+    println!("  {dim}validated quantitative finance, in Rust{reset}");
+
+    let commands = Cli::command().get_subcommands().count();
+    println!(
+        "  {dim}{commands} commands · {} modules — mirror the CLI (drop the `oxis`){reset}",
+        MODULES.len()
+    );
+    println!("  {dim}{REPO}{reset}");
+    println!("  {dim}⇥ tab opens the completion menu · type `help` · `quit` to exit{reset}");
     println!();
-    print_commands();
 }
 
 /// Name + one-line description of every top-level command, introspected from
@@ -141,76 +231,217 @@ fn print_help() {
     println!("Run `<command> --help` for a command's flags. Tab completes commands and flags.");
 }
 
-/// rustyline helper: tab-completion of command names (first word) and the long
-/// flags of the active command (later words), introspected from clap.
-#[derive(Helper, Hinter, Highlighter, Validator)]
-struct ReplHelper {
-    commands: Vec<String>,
+/// Global flags declared on [`Cli`] with `global = true`; available on every
+/// command, so completion offers them (with their help text) at any depth.
+const GLOBAL_FLAGS: &[(&str, &str)] = &[
+    ("--json", "Emit structured JSON"),
+    ("--tsv", "Emit tab-separated values"),
+    ("--quiet", "Suppress non-essential output"),
+    ("--verbose", "Emit extra diagnostics to stderr"),
+];
+
+/// A completion candidate: the text inserted plus an optional one-line
+/// description shown next to it in the dropdown.
+struct Candidate {
+    value: String,
+    description: Option<String>,
 }
 
-impl ReplHelper {
-    fn new() -> Self {
-        let mut commands: Vec<String> = Cli::command()
-            .get_subcommands()
-            .map(|c| c.get_name().to_string())
-            .collect();
-        commands.extend(BUILTINS.iter().map(|s| s.to_string()));
-        commands.sort();
-        Self { commands }
-    }
+/// First line of a (possibly multi-line) clap help string.
+fn first_line(s: &str) -> String {
+    s.lines().next().unwrap_or("").to_string()
 }
 
-/// Long flags (`--flag`) for the subcommand named `name`, if any.
-fn flags_for(name: &str) -> Vec<String> {
-    let cli = Cli::command();
-    let Some(sub) = cli.get_subcommands().find(|c| c.get_name() == name) else {
-        return Vec::new();
-    };
-    // For commands with their own nested subcommands (e.g. `ml`, `portfolio`),
-    // offer the nested command names; otherwise offer the long flags.
-    let nested: Vec<String> = sub
-        .get_subcommands()
-        .map(|c| c.get_name().to_string())
-        .collect();
-    if !nested.is_empty() {
-        return nested;
+/// Walk the clap command tree following the subcommand names already typed,
+/// returning the deepest command reached. Tokens that aren't subcommand names
+/// (flags, flag values) are skipped, so `ml american --spot 100` resolves to the
+/// `american` command.
+fn resolve_command<'a>(root: &'a clap::Command, preceding: &[&str]) -> &'a clap::Command {
+    let mut current = root;
+    for tok in preceding {
+        if tok.starts_with('-') {
+            continue;
+        }
+        if let Some(sub) = current.find_subcommand(tok) {
+            current = sub;
+        }
     }
-    sub.get_arguments()
-        .filter_map(|a| a.get_long().map(|l| format!("--{l}")))
+    current
+}
+
+/// Nested subcommand names of `cmd`, each with its one-line about text.
+fn subcommand_candidates(cmd: &clap::Command) -> Vec<Candidate> {
+    cmd.get_subcommands()
+        .map(|c| Candidate {
+            value: c.get_name().to_string(),
+            description: c.get_about().map(|s| first_line(&s.to_string())),
+        })
         .collect()
 }
 
-impl Completer for ReplHelper {
-    type Candidate = Pair;
-
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &rustyline::Context<'_>,
-    ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        // Start of the word under the cursor = just after the last whitespace.
-        let start = line[..pos].rfind(char::is_whitespace).map_or(0, |i| i + 1);
-        let word = &line[start..pos];
-        let preceding = line[..start].trim();
-
-        let candidates: Vec<String> = if preceding.is_empty() {
-            // First word: complete command names + REPL builtins.
-            self.commands.clone()
-        } else {
-            // Later word: complete the first token's flags / nested commands.
-            let first = preceding.split_whitespace().next().unwrap_or("");
-            flags_for(first)
-        };
-
-        let matches = candidates
-            .into_iter()
-            .filter(|c| c.starts_with(word))
-            .map(|c| Pair {
-                display: c.clone(),
-                replacement: c,
+/// Long flags (`--flag`) declared on `cmd` with their help text, plus the
+/// always-available globals.
+fn flag_candidates(cmd: &clap::Command) -> Vec<Candidate> {
+    let mut flags: Vec<Candidate> = cmd
+        .get_arguments()
+        .filter_map(|a| {
+            a.get_long().map(|l| Candidate {
+                value: format!("--{l}"),
+                description: a.get_help().map(|s| first_line(&s.to_string())),
             })
-            .collect();
-        Ok((start, matches))
+        })
+        .collect();
+    for (flag, desc) in GLOBAL_FLAGS {
+        if !flags.iter().any(|c| c.value == *flag) {
+            flags.push(Candidate {
+                value: (*flag).to_string(),
+                description: Some((*desc).to_string()),
+            });
+        }
+    }
+    flags
+}
+
+/// Compute the completion candidates for the word under the cursor: returns the
+/// word's start offset and the sorted, prefix-filtered candidate list. Pure and
+/// I/O-free so it can be unit-tested without a live line editor.
+fn candidates_at(line: &str, pos: usize) -> (usize, Vec<Candidate>) {
+    // Start of the word under the cursor = just after the last whitespace.
+    let start = line[..pos].rfind(char::is_whitespace).map_or(0, |i| i + 1);
+    let word = &line[start..pos];
+    let preceding: Vec<&str> = line[..start].split_whitespace().collect();
+
+    let root = Cli::command();
+    let current = resolve_command(&root, &preceding);
+
+    let mut candidates: Vec<Candidate> = if word.starts_with('-') {
+        // Completing a flag: the resolved command's long flags (+ globals).
+        flag_candidates(current)
+    } else if preceding.is_empty() {
+        // First word: top-level command names + REPL builtins.
+        let mut c = subcommand_candidates(current);
+        c.extend(BUILTINS.iter().map(|(name, desc)| Candidate {
+            value: (*name).to_string(),
+            description: Some((*desc).to_string()),
+        }));
+        c
+    } else {
+        // Later word: nested subcommand names if the command has any,
+        // otherwise fall back to its flags.
+        let subs = subcommand_candidates(current);
+        if subs.is_empty() {
+            flag_candidates(current)
+        } else {
+            subs
+        }
+    };
+    candidates.retain(|c| c.value.starts_with(word));
+    candidates.sort_by(|a, b| a.value.cmp(&b.value));
+    (start, candidates)
+}
+
+/// reedline completer: turns [`candidates_at`] into dropdown suggestions.
+struct OxisCompleter;
+
+impl Completer for OxisCompleter {
+    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+        let (start, candidates) = candidates_at(line, pos);
+        candidates
+            .into_iter()
+            .map(|c| Suggestion {
+                value: c.value,
+                description: c.description,
+                style: None,
+                extra: None,
+                span: Span { start, end: pos },
+                append_whitespace: true,
+                display_override: None,
+                match_indices: None,
+            })
+            .collect()
+    }
+}
+
+/// Minimal `oxis> ` prompt for reedline.
+struct OxisPrompt;
+
+impl Prompt for OxisPrompt {
+    fn render_prompt_left(&self) -> Cow<'_, str> {
+        Cow::Borrowed("oxis> ")
+    }
+    fn render_prompt_right(&self) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+    fn render_prompt_indicator(&self, _mode: PromptEditMode) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+    fn render_prompt_multiline_indicator(&self) -> Cow<'_, str> {
+        Cow::Borrowed("... ")
+    }
+    fn render_prompt_history_search_indicator(
+        &self,
+        history_search: PromptHistorySearch,
+    ) -> Cow<'_, str> {
+        let failing = matches!(history_search.status, PromptHistorySearchStatus::Failing);
+        let prefix = if failing { "failing " } else { "" };
+        Cow::Owned(format!("({prefix}search: {}) ", history_search.term))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Candidate strings for a line completed at its end.
+    fn complete(line: &str) -> Vec<String> {
+        candidates_at(line, line.len())
+            .1
+            .into_iter()
+            .map(|c| c.value)
+            .collect()
+    }
+
+    #[test]
+    fn first_word_offers_commands_and_builtins() {
+        let cands = complete("");
+        assert!(cands.contains(&"price".to_string()));
+        assert!(cands.contains(&"ml".to_string()));
+        assert!(cands.contains(&"quit".to_string()));
+    }
+
+    #[test]
+    fn first_word_is_prefix_filtered() {
+        let cands = complete("pri");
+        assert_eq!(cands, vec!["price".to_string()]);
+    }
+
+    #[test]
+    fn nested_subcommands_complete() {
+        // `ml ` should offer its nested engines, not top-level commands.
+        let cands = complete("ml ");
+        assert!(cands.contains(&"american".to_string()));
+        assert!(cands.contains(&"price".to_string()));
+        assert!(!cands.contains(&"greeks".to_string()));
+    }
+
+    #[test]
+    fn nested_command_flags_complete() {
+        // The gap we fixed: flags of a *nested* subcommand.
+        let cands = complete("ml american --met");
+        assert_eq!(cands, vec!["--method".to_string()]);
+    }
+
+    #[test]
+    fn flags_include_globals_at_any_depth() {
+        let cands = complete("ml american --");
+        assert!(cands.contains(&"--spot".to_string()));
+        assert!(cands.contains(&"--json".to_string()));
+    }
+
+    #[test]
+    fn flag_values_do_not_derail_resolution() {
+        // Tokens after a consumed flag value must not break tree descent.
+        let cands = complete("ml american --spot 100 --meth");
+        assert_eq!(cands, vec!["--method".to_string()]);
     }
 }

@@ -1,5 +1,13 @@
 # OXIS
 
+[![CI](https://github.com/jpvich/oxis/actions/workflows/ci.yml/badge.svg)](https://github.com/jpvich/oxis/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/oxis.svg)](https://crates.io/crates/oxis)
+[![Downloads](https://img.shields.io/crates/d/oxis.svg)](https://crates.io/crates/oxis)
+[![Docs.rs](https://docs.rs/oxis/badge.svg)](https://docs.rs/oxis)
+[![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
+[![Dependencies](https://deps.rs/repo/github/jpvich/oxis/status.svg)](https://deps.rs/repo/github/jpvich/oxis)
+[![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
+
 **Open eXtensible Instruments & Statistics** — a modular, validated quantitative finance library written in Rust.
 
 OXIS is built to be used four ways from a single validated core: as a **Rust crate**, a **Python package** (via PyO3), a **scriptable CLI**, and an **interactive terminal REPL**. **Every pricing model is validated against [QuantLib](https://www.quantlib.org/) — the industry-standard reference — (or a closed form, or numpy/scipy for statistics) to a documented numerical tolerance.**
@@ -94,25 +102,26 @@ Toolchain: Rust ≥ 1.85 (edition 2024). QuantLib-Python is **only** needed to *
 
 ### Interactive REPL
 
-Run `oxis` with no subcommand to open the REPL. It opens with a banner and a command listing built live from the parser, then takes the same commands as the CLI (without the leading `oxis`). It has history (↑/↓), tab-completion of commands, nested subcommands, and flags, and per-line output flags. `help` reprints the listing; `quit`, `exit`, or Ctrl-D leaves.
+Run `oxis` with no subcommand to open the REPL. It opens with a banner (logo, version/build metadata, and live command/module counts from the parser), then takes the same commands as the CLI (without the leading `oxis`). It has history (↑/↓) and per-line output flags. `help` prints the full command listing; `quit`, `exit`, or Ctrl-D leaves.
+
+**Tab** opens an IDE-style completion dropdown under the cursor (powered by [`reedline`](https://github.com/nushell/reedline)): navigate with ↑/↓ and press Enter to accept. Each entry carries its clap help text as a description. The candidates are computed by walking the clap command tree at the cursor, so they track the real parser at any depth: top-level commands and REPL builtins for the first word (`pri`↹ → `price`), a command's nested subcommands next (`ml `↹ → `american · price`), and its long flags — including the global `--json`/`--tsv`/`--quiet`/`--verbose` — after that (`ml american --met`↹ → `--method`). Completion never drifts from the real commands.
 
 ```text
 $ oxis
-  ██████  ██   ██ ██ ███████
- ██    ██  ██ ██  ██ ██
- ██    ██   ███   ██ ███████
- ██    ██  ██ ██  ██      ██
-  ██████  ██   ██ ██ ███████
-  Open eXtensible Instruments & Statistics · v0.0.0
+   ██████╗  ██╗  ██╗ ██╗ ███████╗
+  ██╔═══██╗ ╚██╗██╔╝ ██║ ██╔════╝
+  ██║   ██║  ╚███╔╝  ██║ ███████╗
+  ██║   ██║  ██╔██╗  ██║ ╚════██║
+  ╚██████╔╝ ██╔╝ ██╗ ██║ ███████║
+   ╚═════╝  ╚═╝  ╚═╝ ╚═╝ ╚══════╝
 
-Interactive REPL — commands are identical to the CLI (without the leading `oxis`).
-Type `help`, `<command> --help`, or `quit`. Tab completes commands and flags.
-
-Commands:
-  price        Price an option (`--model black-scholes|binomial`, `--style`)
-  greeks       Compute analytic Black-Scholes Greeks for a European option
-  ...          (the full list is generated from the command set)
-  ml           ML-based pricing (differential ML), vs the classical engines
+  Open eXtensible Instruments & Statistics
+  ────────────────────────────────────────────────────
+  v0.0.0   ·   built 2026-06-29   ·   52d8809
+  validated quantitative finance, in Rust
+  10 commands · 8 modules — mirror the CLI (drop the `oxis`)
+  github.com/jpvich/oxis
+  ⇥ tab opens the completion menu · type `help` · `quit` to exit
 
 oxis> price --spot 100 --strike 100 --rate 0.05 --vol 0.2 --t 1 --type call
 price: 10.45058357218555
