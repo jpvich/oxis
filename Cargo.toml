@@ -33,10 +33,10 @@ thiserror = "2"
 anyhow = "1"
 # CLI argument parsing (the `oxis` binary only, behind its `cli` feature).
 clap = { version = "4", features = ["derive"] }
-# Interactive REPL line editor (the `oxis` binary only): history, line editing, and a
-# completer. `shlex` tokenizes a REPL line into argv (quote-aware) so each line
-# is re-parsed by the same clap definitions as the CLI.
-rustyline = { version = "14", features = ["derive"] }
+# Interactive REPL line editor (the `oxis` binary only): history, line editing, and an
+# interactive completion menu (the `IdeMenu` dropdown). `shlex` tokenizes a REPL line
+# into argv (quote-aware) so each line is re-parsed by the same clap definitions as the CLI.
+reedline = "0.49"
 shlex = "1"
 # Python bindings (oxis-python only). `extension-module` is added by that crate
 # so the module links against the host interpreter at import time.

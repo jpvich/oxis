@@ -38,3 +38,5 @@ validation/.venv/
 # Direnv / env
 .env
 .envrc
+
+paper/

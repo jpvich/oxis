@@ -43,7 +43,7 @@ ml = ["dep:oxis-ml", "pricing"]
 # Everything the library exposes.
 full = ["pricing", "greeks", "curves", "bonds", "stochastic", "stats", "portfolio", "ml"]
 # The CLI/REPL binary: needs every module plus the arg-parsing/line-editing deps.
-cli = ["full", "dep:clap", "dep:anyhow", "dep:rustyline", "dep:shlex"]
+cli = ["full", "dep:clap", "dep:anyhow", "dep:reedline", "dep:shlex"]
 
 [dependencies]
 # Core is always present — it is the stable contract every surface builds on.
@@ -61,5 +61,5 @@ oxis-ml = { workspace = true, optional = true }
 # CLI/REPL-only dependencies, gated behind the `cli` feature.
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
-rustyline = { workspace = true, optional = true }
+reedline = { workspace = true, optional = true }
 shlex = { workspace = true, optional = true }
