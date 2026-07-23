@@ -1,0 +1,238 @@
+name: Release
+
+# Fired by pushing a version tag (`git tag v0.1.0 && git push origin v0.1.0`).
+# Everything below is reproducible from that tag alone: the crate goes to
+# crates.io, wheels to PyPI, and CLI binaries onto the GitHub Release.
+#
+# Nothing here runs on a normal push — a release is always an explicit,
+# deliberate act. The publish jobs only start once the gate job is green.
+on:
+  push:
+    tags: ["v*"]
+  # Manual dry run: builds and uploads artifacts, publishes nothing.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. The same gate as CI. A tag that cannot pass CI must not be published,
+  #    and crates.io versions cannot be deleted — only yanked.
+  # ---------------------------------------------------------------------------
+  gate:
+    name: gate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Rust (from rust-toolchain.toml)
+        run: rustup show && rustc --version && cargo --version
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+      # The tag must match the version being released, or the artifacts and the
+      # release notes disagree with what actually lands on the registries.
+      - name: Tag matches crate version
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Linux'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          crate=$(cargo metadata --no-deps --format-version 1 \
+                  | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="oxis"))')
+          py=$(cargo metadata --no-deps --format-version 1 \
+               | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="oxis-python"))')
+          echo "tag=$tag crate=$crate python=$py"
+          test "$tag" = "$crate" || { echo "::error::tag $tag != oxis $crate"; exit 1; }
+          test "$tag" = "$py"    || { echo "::error::tag $tag != oxis-python $py"; exit 1; }
+
+  # ---------------------------------------------------------------------------
+  # 2. crates.io. Publishes the single `oxis` crate (no path deps since the
+  #    collapse, so it packages standalone).
+  # ---------------------------------------------------------------------------
+  crates-io:
+    name: publish crates.io
+    needs: gate
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup show
+      - name: Publish
+        run: cargo publish -p oxis --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # 3. Python wheels. abi3-py39 means one wheel per platform covers 3.9+,
+  #    so the matrix is over OS/arch only, not interpreter version.
+  # ---------------------------------------------------------------------------
+  wheels:
+    name: wheels (${{ matrix.target }})
+    needs: gate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: macos-latest,   target: aarch64-apple-darwin }
+          - { os: macos-13,       target: x86_64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          # manylinux for the Linux targets; ignored elsewhere.
+          manylinux: auto
+          args: --release --out dist --manifest-path python/Cargo.toml
+          sccache: "true"
+
+      - name: Smoke-test the wheel
+        # Skip where the wheel cannot run on the builder (cross-built arm64 Linux).
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-index --find-links dist oxis
+          python -c "import oxis; print(oxis.black_scholes(100,100,0.05,0.2,1,'call'))"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-${{ matrix.target }}
+          path: dist
+
+  sdist:
+    name: sdist
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path python/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-sdist
+          path: dist
+
+  # ---------------------------------------------------------------------------
+  # 4. PyPI, via Trusted Publishing (OIDC) — no long-lived API token in secrets.
+  #    Requires the `oxis` project on PyPI to trust this repo/workflow.
+  # ---------------------------------------------------------------------------
+  pypi:
+    name: publish PyPI
+    needs: [wheels, sdist]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ---------------------------------------------------------------------------
+  # 5. CLI binaries for the GitHub Release, so `oxis` is usable without a
+  #    Rust toolchain.
+  # ---------------------------------------------------------------------------
+  binaries:
+    name: binary (${{ matrix.target }})
+    needs: gate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu, ext: "" }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: "" }
+          - { os: macos-latest,     target: aarch64-apple-darwin,     ext: "" }
+          - { os: macos-13,         target: x86_64-apple-darwin,      ext: "" }
+          - { os: windows-latest,   target: x86_64-pc-windows-msvc,   ext: ".exe" }
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup show && rustup target add ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked -p oxis --bin oxis --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          name="oxis-${GITHUB_REF_NAME:-dev}-${{ matrix.target }}"
+          mkdir -p "staging/$name"
+          cp "target/${{ matrix.target }}/release/oxis${{ matrix.ext }}" "staging/$name/"
+          cp README.md LICENSE-MIT LICENSE-APACHE "staging/$name/"
+          mkdir -p out
+          if [ "${{ matrix.ext }}" = ".exe" ]; then
+            (cd staging && 7z a "../out/$name.zip" "$name")
+          else
+            tar -czf "out/$name.tar.gz" -C staging "$name"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: binary-${{ matrix.target }}
+          path: out
+
+  github-release:
+    name: github release
+    needs: [binaries, crates-io, pypi]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: binary-*
+          merge-multiple: true
+          path: out
+      # Notes are written to a file rather than passed inline, so the markdown
+      # code fence keeps its indentation-free form.
+      - name: Compose release notes
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            printf 'See [CHANGELOG.md](https://github.com/%s/blob/main/CHANGELOG.md) for what changed.\n\n' "$REPO"
+            printf '```bash\n'
+            printf 'cargo add oxis          # Rust library\n'
+            printf 'cargo install oxis      # CLI + REPL\n'
+            printf 'pip install oxis        # Python bindings\n'
+            printf '```\n\n'
+            printf 'The attached archives contain a prebuilt `oxis` binary — no Rust toolchain needed.\n'
+          } > notes.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --title "$GITHUB_REF_NAME" --notes-file notes.md
