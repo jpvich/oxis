@@ -37,3 +37,11 @@ py-dev:
 # (Available once the `validation/` tooling exists.)
 gen-reference:
     cd validation && python generate_reference.py
+
+# Dry-run the crates.io publish: packages `oxis` and compiles the packaged copy.
+# Publishing itself is done by pushing a `v*` tag (see .github/workflows/release.yml).
+publish-check:
+    cargo publish -p oxis --locked --dry-run
+
+# Everything a release tag will be checked against, locally.
+release-check: check publish-check

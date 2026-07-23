@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/oxis.svg)](https://crates.io/crates/oxis)
 [![Downloads](https://img.shields.io/crates/d/oxis.svg)](https://crates.io/crates/oxis)
 [![Docs.rs](https://docs.rs/oxis/badge.svg)](https://docs.rs/oxis)
+[![PyPI](https://img.shields.io/pypi/v/oxis.svg)](https://pypi.org/project/oxis/)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![Dependencies](https://deps.rs/repo/github/jpvich/oxis/status.svg)](https://deps.rs/repo/github/jpvich/oxis)
 [![License: MIT/Apache-2.0](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
@@ -14,8 +15,10 @@ OXIS is built to be used four ways from a single validated core: as a **Rust cra
 
 > The name nods to both its foundation and its character: *oxidation* (the Rust ecosystem) and the Greek root *oxys* (ὀξύς, "sharp, precise") — precision being the whole point of a pricing library.
 
-> [!WARNING]
-> OXIS is in active development. APIs are unstable and may change without notice until the first tagged release.
+> [!NOTE]
+> OXIS is pre-1.0 and under active development. The validated numerics are the stable
+> part; the public API may still change in a `0.x` release. Breaking changes are called
+> out in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Why OXIS
 
@@ -56,26 +59,31 @@ Per-model method and validation status live in [`docs/models.md`](docs/models.md
 OXIS is a **single `oxis` crate** — the library, the CLI, and the REPL are one
 package, and every domain is an internal module (`oxis::pricing`, `oxis::ml`, …).
 
-Not yet published to crates.io / PyPI. Until the first release, depend on it
-straight from git, or build from source:
-
-```toml
-# Cargo.toml — track the repo until the crates.io release:
-oxis = { git = "https://github.com/jpvich/oxis" }
+```bash
+cargo add oxis          # Rust library
+cargo install oxis      # the `oxis` CLI + REPL, onto your PATH
+pip install oxis        # Python bindings (wheels for CPython 3.9+)
 ```
 
-```bash
-# Rust workspace
-cargo build --workspace --release        # builds the `oxis` binary at target/release/oxis
-cargo test  --workspace                   # run the full validated test suite
+Prebuilt CLI binaries for Linux, macOS, and Windows are attached to each
+[GitHub release](https://github.com/jpvich/oxis/releases) — no Rust toolchain needed.
 
-# install the CLI/REPL binary onto your PATH
-cargo install --path crates/oxis          # provides the `oxis` command
+<details>
+<summary>Build from source</summary>
+
+```bash
+git clone https://github.com/jpvich/oxis && cd oxis
+
+cargo build --workspace --release        # builds the `oxis` binary at target/release/oxis
+cargo test  --workspace                  # run the full validated test suite
+cargo install --path crates/oxis         # install the CLI/REPL from the working tree
 
 # Python bindings (PyO3 + maturin) — from a virtualenv
 pip install maturin
-cd python && maturin develop              # builds and installs the `oxis` module
+cd python && maturin develop             # builds and installs the `oxis` module
 ```
+
+</details>
 
 ### Use OXIS as a Rust library
 
@@ -123,7 +131,7 @@ $ oxis
 
   Open eXtensible Instruments & Statistics
   ────────────────────────────────────────────────────
-  v0.0.0   ·   built 2026-06-29   ·   52d8809
+  v0.1.0   ·   built 2026-07-22   ·   d2580a9
   validated quantitative finance, in Rust
   10 commands · 8 modules — mirror the CLI (drop the `oxis`)
   github.com/jpvich/oxis

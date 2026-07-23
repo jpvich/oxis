@@ -30,6 +30,11 @@ required-features = ["cli"]
 [lints]
 workspace = true
 
+# docs.rs builds the default features, which already pull in `full` via `cli`;
+# stated explicitly so a future change to `default` cannot silently shrink the docs.
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = ["cli"]
 # Each domain module is a feature so a library user compiles only what they need:
