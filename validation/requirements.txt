@@ -1,0 +1,8 @@
+# Reference-data generation only — NOT a runtime dependency of OXIS.
+# Pinned to the version used to generate the committed reference data.
+QuantLib==1.42.1
+# numpy/scipy/pandas are the oracle for the oxis-stats (Ring 3) statistics suite,
+# where QuantLib has thin coverage.
+numpy==2.5.0
+scipy==1.18.0
+pandas==3.0.3

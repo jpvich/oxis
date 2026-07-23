@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/oxis-core"]
+members = [
+    "crates/oxis",
+    "python",
+]
 
 [workspace.package]
 edition = "2024"
@@ -8,6 +11,32 @@ rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jpvich/oxis"
 homepage = "https://github.com/jpvich/oxis"
+
+# Shared dependency versions, referenced by member crates via `<dep>.workspace = true`.
+# Kept deliberately small — a new entry needs justification (see CONTRIBUTING.md).
+[workspace.dependencies]
+# Serialization — `--json` output and the typed interchange records.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Library error type (oxis-core) and app-level errors (the `oxis` CLI / future apps).
+thiserror = "2"
+anyhow = "1"
+# CLI argument parsing (the `oxis` binary only, behind its `cli` feature).
+clap = { version = "4", features = ["derive"] }
+# Interactive REPL line editor (the `oxis` binary only): history, line editing, and an
+# interactive completion menu (the `IdeMenu` dropdown). `shlex` tokenizes a REPL line
+# into argv (quote-aware) so each line is re-parsed by the same clap definitions as the CLI.
+reedline = "0.49"
+shlex = "1"
+# Python bindings (oxis-python only). `extension-module` is added by that crate
+# so the module links against the host interpreter at import time.
+pyo3 = { version = "0.23", features = ["abi3-py39"] }
+# Monte Carlo simulation (oxis-pricing only). `small_rng` enables the fast,
+# seedable SmallRng used for counter-based per-path seeding; `rand_distr`
+# samples the standard normal; `rayon` parallelizes the path loop.
+rand = { version = "0.8", features = ["small_rng"] }
+rand_distr = "0.4"
+rayon = "1"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "warn"

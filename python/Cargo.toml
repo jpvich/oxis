@@ -1,0 +1,26 @@
+[package]
+name = "oxis-python"
+version = "0.1.0"
+description = "Python bindings (PyO3) for OXIS — a thin wrapper over the pure cores."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+# Built as a Python extension module named `oxis` (see pyproject.toml).
+[lib]
+name = "oxis"
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# The single `oxis` crate provides every domain as a module. The bindings are a
+# thin wrapper over its pure cores, so the library (not the CLI) is enough.
+# Imported as `oxis_lib` because this crate's own extension module is also named
+# `oxis` (see `[lib]`), so the dependency needs a distinct in-crate name.
+oxis_lib = { package = "oxis", path = "../crates/oxis", default-features = false, features = ["full"] }
+pyo3 = { workspace = true, features = ["extension-module"] }

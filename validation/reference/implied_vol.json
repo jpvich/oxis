@@ -1,0 +1,231 @@
+{
+  "oracle": "QuantLib",
+  "oracle_version": "1.42.1",
+  "model": "black-scholes-implied-vol",
+  "engine": "VanillaOption.impliedVolatility",
+  "day_count": "Actual365Fixed",
+  "evaluation_date": "June 15th, 2026",
+  "tolerance": 1e-06,
+  "cases": [
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 10.450583572185575,
+      "implied_volatility": 0.20000000000001644
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 5.573526022256966,
+      "implied_volatility": 0.20000000000001636
+    },
+    {
+      "spot": 100.0,
+      "strike": 105.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 8.021352235143171,
+      "implied_volatility": 0.2000000000001829
+    },
+    {
+      "spot": 100.0,
+      "strike": 105.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 7.90044180771813,
+      "implied_volatility": 0.2000000000001831
+    },
+    {
+      "spot": 100.0,
+      "strike": 95.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 13.346464945879596,
+      "implied_volatility": 0.1999999999999999
+    },
+    {
+      "spot": 100.0,
+      "strike": 95.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 3.7132602734474176,
+      "implied_volatility": 0.2000000000000002
+    },
+    {
+      "spot": 150.0,
+      "strike": 100.0,
+      "rate": 0.03,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 53.45028282220897,
+      "implied_volatility": 0.24999999999762015
+    },
+    {
+      "spot": 60.0,
+      "strike": 100.0,
+      "rate": 0.03,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 37.24180012959083,
+      "implied_volatility": 0.24999999999995906
+    },
+    {
+      "spot": 100.0,
+      "strike": 200.0,
+      "rate": 0.03,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 0.042790314674579465,
+      "implied_volatility": 0.24999999999617828
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 0.0821917808219178,
+      "option_type": "call",
+      "market_price": 2.493376819403741,
+      "implied_volatility": 0.1999999999975567
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 0.0821917808219178,
+      "option_type": "put",
+      "market_price": 2.0832611958241802,
+      "implied_volatility": 0.19999999999755835
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 5.0,
+      "option_type": "call",
+      "market_price": 29.13861974388604,
+      "implied_volatility": 0.20000000000870907
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 5.0,
+      "option_type": "put",
+      "market_price": 7.018698051026526,
+      "implied_volatility": 0.2000000000087091
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.03,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 8.652528553942725,
+      "implied_volatility": 0.19999999999999865
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.03,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 6.730917649163299,
+      "implied_volatility": 0.19999999999999873
+    },
+    {
+      "spot": 120.0,
+      "strike": 110.0,
+      "rate": 0.03,
+      "dividend_yield": 0.01,
+      "time": 0.7506849315068493,
+      "option_type": "call",
+      "market_price": 20.192836533279095,
+      "implied_volatility": 0.3499999999878976
+    },
+    {
+      "spot": 120.0,
+      "strike": 110.0,
+      "rate": 0.03,
+      "dividend_yield": 0.01,
+      "time": 0.7506849315068493,
+      "option_type": "put",
+      "market_price": 8.640711856971208,
+      "implied_volatility": 0.34999999998789794
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 5.283268987649918,
+      "implied_volatility": 0.05000000000000139
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 32.820982466990074,
+      "implied_volatility": 0.7999999999999999
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": 0.05,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 27.94392491706146,
+      "implied_volatility": 0.7999999999999997
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": -0.01,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "call",
+      "market_price": 7.513058243602445,
+      "implied_volatility": 0.20000000000969914
+    },
+    {
+      "spot": 100.0,
+      "strike": 100.0,
+      "rate": -0.01,
+      "dividend_yield": 0.0,
+      "time": 1.0,
+      "option_type": "put",
+      "market_price": 8.518074952019237,
+      "implied_volatility": 0.20000000000969928
+    }
+  ]
+}
