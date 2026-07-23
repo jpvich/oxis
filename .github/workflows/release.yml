@@ -72,14 +72,39 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: rustup show
-      - name: Publish
-        run: cargo publish -p oxis --locked
+
+      # A crates.io version can never be unpublished, so a re-run of a release
+      # (say, after fixing a broken wheel job) must not treat "already there" as
+      # a failure — otherwise the downstream GitHub Release job never runs and
+      # the release is stuck half-finished with no way forward but a new version.
+      - name: Publish (skip if the version is already on crates.io)
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          published=$(curl -sSf \
+            -H "User-Agent: oxis-release (https://github.com/${{ github.repository }})" \
+            "https://crates.io/api/v1/crates/oxis" \
+            | python3 -c 'import json,sys; print(" ".join(v["num"] for v in json.load(sys.stdin)["versions"]))')
+          echo "already on crates.io: $published"
+          case " $published " in
+            *" $version "*)
+              echo "::notice::oxis $version is already published; skipping cargo publish"
+              ;;
+            *)
+              cargo publish -p oxis --locked
+              ;;
+          esac
 
   # ---------------------------------------------------------------------------
   # 3. Python wheels. abi3-py39 means one wheel per platform covers 3.9+,
   #    so the matrix is over OS/arch only, not interpreter version.
+  #
+  #    No x86_64-apple-darwin: it needs the `macos-13` runner, which GitHub has
+  #    retired — jobs targeting it queue forever instead of failing. Apple's last
+  #    Intel Mac shipped in 2023, so `aarch64-apple-darwin` covers current
+  #    hardware, and an Intel Mac still installs from the sdist (needs a Rust
+  #    toolchain). Revisit if GitHub ships a supported Intel macOS runner.
   # ---------------------------------------------------------------------------
   wheels:
     name: wheels (${{ matrix.target }})
@@ -92,7 +117,6 @@ jobs:
           - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
           - { os: macos-latest,   target: aarch64-apple-darwin }
-          - { os: macos-13,       target: x86_64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v7
@@ -174,7 +198,6 @@ jobs:
           - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu, ext: "" }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, ext: "" }
           - { os: macos-latest,     target: aarch64-apple-darwin,     ext: "" }
-          - { os: macos-13,         target: x86_64-apple-darwin,      ext: "" }
           - { os: windows-latest,   target: x86_64-pc-windows-msvc,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v7
