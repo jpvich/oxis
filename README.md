@@ -14,7 +14,7 @@
 OXIS is built to be used four ways from a single validated core: as a **Rust crate**, a **Python package** (via PyO3), a **scriptable CLI**, and an **interactive terminal REPL**. **Every pricing model is validated against [QuantLib](https://www.quantlib.org/) — the industry-standard reference — (or a closed form, or numpy/scipy for statistics) to a documented numerical tolerance.**
 
 > The name nods to both its foundation and its character: *oxidation* (the Rust ecosystem) and the Greek root *oxys* (ὀξύς, "sharp, precise") — precision being the whole point of a pricing library.
-
+ 
 > [!NOTE]
 > OXIS is pre-1.0 and under active development. The validated numerics are the stable
 > part; the public API may still change in a `0.x` release. Breaking changes are called
